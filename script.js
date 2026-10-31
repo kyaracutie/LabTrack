@@ -34,19 +34,6 @@ import {
 const STORAGE_KEY = "labtrack_original_v3";
 const THEME_KEY = "labtrack_theme_v3";
 
-const STAFF_PASSWORD_KEY = "labtrack_staff_password_v1";
-const DEFAULT_STAFF_PASSWORD = "kyaracute";
-
-function getStaffPassword() {
-  let password = localStorage.getItem(STAFF_PASSWORD_KEY);
-
-  if (password === null) {
-    password = DEFAULT_STAFF_PASSWORD;
-    localStorage.setItem(STAFF_PASSWORD_KEY, password);
-  }
-
-  return password;
-}
 
 const INITIAL_ITEMS = [
   {
@@ -171,18 +158,8 @@ function cloneInitialItems() {
 function freshData() {
   return {
     items: cloneInitialItems(),
-    records: [
-      {
-        id: 1,
-        studentName: "Demo Student",
-        itemId: "LT001",
-        itemName: "Test Tube",
-        borrowedAt: new Date().toISOString(),
-        returnedAt: null,
-        status: "Borrowed"
-      }
-    ],
-    nextRecordId: 2
+    records: [],
+    nextRecordId: 1
   };
 }
 
@@ -204,9 +181,13 @@ function loadData() {
   }
 }
 
-let data = loadData();
+let data = {
+  items: [],
+  records: []
+};
 
 let unsubscribeInventory = null;
+let unsubscribeRecords = null;
 
 function startInventorySync() {
   // Stop the previous listener before starting another one.
@@ -228,6 +209,40 @@ function startInventorySync() {
     error => {
       console.error("Inventory sync error:", error);
       showToast("Could not synchronize inventory.");
+    }
+  );
+}
+
+function startRecordsSync() {
+  if (unsubscribeRecords) {
+    unsubscribeRecords();
+    unsubscribeRecords = null;
+  }
+
+  if (!currentUser) return;
+
+  const recordsRef = collection(db, "records");
+
+  const recordsQuery = roleIsStaff()
+    ? recordsRef
+    : query(
+        recordsRef,
+        where("studentUid", "==", currentUser.uid)
+      );
+
+  unsubscribeRecords = onSnapshot(
+    recordsQuery,
+    snapshot => {
+      data.records = snapshot.docs.map(recordDoc => ({
+        id: recordDoc.id,
+        ...recordDoc.data()
+      }));
+
+      renderApp();
+    },
+    error => {
+      console.error("Records sync error:", error);
+      showToast("Could not synchronize borrowing records.");
     }
   );
 }
@@ -256,7 +271,10 @@ function escapeHTML(value) {
 function dateText(value) {
   if (!value) return "—";
 
-  const date = new Date(value);
+  const date = value?.toDate
+    ? value.toDate()
+    : new Date(value);
+
   if (Number.isNaN(date.getTime())) return "—";
 
   return date.toLocaleString([], {
@@ -308,11 +326,11 @@ function findItem(id) {
   return data.items.find(item => item.id.toUpperCase() === normalized);
 }
 
-function findActiveRecord(itemId, studentName) {
+function findActiveRecord(itemId, studentUid) {
   return data.records.find(record =>
     record.itemId === itemId &&
     record.status === "Borrowed" &&
-    record.studentName.toLowerCase() === studentName.toLowerCase()
+    record.studentUid === studentUid
   );
 }
 
@@ -948,7 +966,7 @@ function borrowItem(itemId) {
     return;
   }
 
-  if (findActiveRecord(item.id, currentUser.name)) {
+  if (findActiveRecord(item.id, currentUser.uid)) {
     showToast("You already have an active borrowing for this apparatus.");
     return;
   }
@@ -961,54 +979,71 @@ function borrowItem(itemId) {
   );
 }
 
-function completeBorrow(itemId) {
-  const item = findItem(itemId);
+async function completeBorrow(itemId) {
+  if (!currentUser || roleIsStaff()) return;
 
-  if (!item || item.available < 1) {
-    showToast("No units are currently available.");
+  const itemRef = doc(db, "inventory", itemId);
+  const recordRef = doc(collection(db, "records"));
+
+  try {
+    if (findActiveRecord(itemId, currentUser.uid)) {
+      showToast("You already have an active borrowing for this apparatus.");
+      closeModal();
+      return;
+    }
+
+    await runTransaction(db, async transaction => {
+      const itemSnapshot = await transaction.get(itemRef);
+
+      if (!itemSnapshot.exists()) {
+        throw new Error("APPARATUS_NOT_FOUND");
+      }
+
+      const item = itemSnapshot.data();
+
+      if (item.enabled === false) {
+        throw new Error("APPARATUS_DISABLED");
+      }
+
+      if (item.available < 1) {
+        throw new Error("OUT_OF_STOCK");
+      }
+
+      transaction.update(itemRef, {
+        available: item.available - 1
+      });
+
+      transaction.set(recordRef, {
+        studentUid: currentUser.uid,
+        studentName: currentUser.name,
+        itemId: itemId,
+        itemName: item.name,
+        quantity: 1,
+        borrowedAt: serverTimestamp(),
+        returnedAt: null,
+        status: "Borrowed"
+      });
+    });
+
+    closeModal();
+    showToast("Borrowing recorded successfully.");
+    currentPage = "myrecords";
     renderApp();
-    return;
+
+  } catch (error) {
+    console.error("Borrowing transaction error:", error);
+
+    const messages = {
+      APPARATUS_NOT_FOUND: "Apparatus not found.",
+      APPARATUS_DISABLED: "This apparatus is currently disabled.",
+      OUT_OF_STOCK: "No units are currently available."
+    };
+
+    showToast(
+      messages[error.message] ||
+      "Could not complete borrowing. Check your connection and Firebase permissions."
+    );
   }
-
-if (item.enabled === false) {
-  showToast("This apparatus is currently disabled.");
-  renderApp();
-  return;
-}
-
-  if (findActiveRecord(item.id, currentUser.name)) {
-    showToast("An active borrowing already exists for this apparatus.");
-    return;
-  }
-
-  const oldAvailable = item.available;
-  const oldNextId = data.nextRecordId;
-
-  const record = {
-    id: data.nextRecordId++,
-    studentName: currentUser.name,
-    itemId: item.id,
-    itemName: item.name,
-    borrowedAt: new Date().toISOString(),
-    returnedAt: null,
-    status: "Borrowed"
-  };
-
-  item.available--;
-  data.records.push(record);
-
-  if (!saveData()) {
-    item.available = oldAvailable;
-    data.records.pop();
-    data.nextRecordId = oldNextId;
-    renderApp();
-    return;
-  }
-
-  closeModal();
-  showToast(`${item.name} borrowed. ${item.available} available.`);
-  currentPage = "myrecords";
-  renderApp();
 }
 
 function confirmReturn(recordId) {
@@ -1017,14 +1052,14 @@ function confirmReturn(recordId) {
     return;
   }
 
-  const record = data.records.find(r => r.id === Number(recordId));
+  const record = data.records.find(r => r.id === String(recordId));
 
   if (!record) {
     showToast("Borrowing record not found.");
     return;
   }
 
-  if (record.studentName.toLowerCase() !== currentUser.name.toLowerCase()) {
+  if (record.studentUid !== currentUser.uid) {
     showToast("You can only return your own borrowing records.");
     return;
   }
@@ -1036,60 +1071,79 @@ function confirmReturn(recordId) {
 
   showModal(
     "Confirm Apparatus Return",
-    `Are you sure you have physically returned ${record.itemName} (${record.itemId})?\n\nOnly confirm after handing the apparatus back to the laboratory.`,
+    `Are you sure you have physically returned ${record.itemName} (${record.itemId})?`,
     "Confirm Return",
     () => completeReturn(record.id)
   );
 }
 
-function completeReturn(recordId) {
-  const record = data.records.find(r => r.id === Number(recordId));
+async function completeReturn(recordId) {
+  if (!currentUser || roleIsStaff()) return;
 
-  if (!record || record.status !== "Borrowed") {
-    showToast("This record is no longer active.");
+  const recordRef = doc(db, "records", String(recordId));
+
+  try {
+    await runTransaction(db, async transaction => {
+      const recordSnapshot = await transaction.get(recordRef);
+
+      if (!recordSnapshot.exists()) {
+        throw new Error("RECORD_NOT_FOUND");
+      }
+
+      const record = recordSnapshot.data();
+
+      if (record.studentUid !== currentUser.uid) {
+        throw new Error("NOT_OWNER");
+      }
+
+      if (record.status !== "Borrowed") {
+        throw new Error("ALREADY_RETURNED");
+      }
+
+      const itemRef = doc(db, "inventory", record.itemId);
+      const itemSnapshot = await transaction.get(itemRef);
+
+      if (!itemSnapshot.exists()) {
+        throw new Error("APPARATUS_NOT_FOUND");
+      }
+
+      const item = itemSnapshot.data();
+
+      if (item.available >= item.total) {
+        throw new Error("INVENTORY_LIMIT");
+      }
+
+      transaction.update(recordRef, {
+        status: "Returned",
+        returnedAt: serverTimestamp()
+      });
+
+      transaction.update(itemRef, {
+        available: item.available + 1
+      });
+    });
+
     closeModal();
+    showToast("Return recorded successfully.");
+    currentPage = "myrecords";
     renderApp();
-    return;
+
+  } catch (error) {
+    console.error("Return transaction error:", error);
+
+    const messages = {
+      RECORD_NOT_FOUND: "Borrowing record not found.",
+      NOT_OWNER: "You cannot return another student's record.",
+      ALREADY_RETURNED: "This apparatus has already been returned.",
+      APPARATUS_NOT_FOUND: "The apparatus is missing from inventory.",
+      INVENTORY_LIMIT: "Inventory count has reached its total."
+    };
+
+    showToast(
+      messages[error.message] ||
+      "Could not complete return. Check your connection and Firebase permissions."
+    );
   }
-
-  if (record.studentName.toLowerCase() !== currentUser.name.toLowerCase()) {
-    showToast("You cannot return another student's record.");
-    closeModal();
-    return;
-  }
-
-  const item = findItem(record.itemId);
-
-  if (!item) {
-    showToast("The apparatus is missing from the inventory.");
-    return;
-  }
-
-  if (item.available >= item.total) {
-    showToast("Inventory count is already at its total. Ask staff to review it.");
-    return;
-  }
-
-  const oldStatus = record.status;
-  const oldReturnedAt = record.returnedAt;
-  const oldAvailable = item.available;
-
-  record.status = "Returned";
-  record.returnedAt = new Date().toISOString();
-  item.available += 1;
-
-  if (!saveData()) {
-    record.status = oldStatus;
-    record.returnedAt = oldReturnedAt;
-    item.available = oldAvailable;
-    renderApp();
-    return;
-  }
-
-  closeModal();
-  showToast(`Return recorded. ${item.name}: ${item.available} available.`);
-  currentPage = "myrecords";
-  renderApp();
 }
 
 /* ---------- QR scanner ---------- */
@@ -1212,7 +1266,7 @@ function processScannedCode(rawValue) {
     return;
   }
 
-  const active = findActiveRecord(item.id, currentUser.name);
+  const active = findActiveRecord(item.id, currentUser.uid);
 
   if (active) {
     showModal(
@@ -1238,11 +1292,15 @@ function processScannedCode(rawValue) {
 }
 
 function completeReturnFromScan(recordId) {
-  // Same ownership, status, stock, and duplicate checks as the logbook.
-  const record = data.records.find(r => r.id === Number(recordId));
+  const record = data.records.find(
+    r => r.id === String(recordId)
+  );
 
-  if (!record || record.status !== "Borrowed" ||
-      record.studentName.toLowerCase() !== currentUser.name.toLowerCase()) {
+  if (
+    !record ||
+    record.status !== "Borrowed" ||
+    record.studentUid !== currentUser.uid
+  ) {
     closeModal();
     showToast("This active borrowing could not be confirmed.");
     return;
@@ -1571,50 +1629,6 @@ function renderSettingsPage() {
           </div>
         </div>
 
-        <form id="staffPasswordForm">
-          <label class="form-label" for="currentStaffPassword">
-            Current Password
-          </label>
-          <input
-            id="currentStaffPassword"
-            name="currentStaffPassword"
-            type="password"
-            autocomplete="current-password"
-            placeholder="Enter current password"
-            required
-          >
-
-          <label class="form-label" for="newStaffPassword">
-            New Password
-          </label>
-          <input
-            id="newStaffPassword"
-            name="newStaffPassword"
-            type="password"
-            autocomplete="new-password"
-            minlength="6"
-            placeholder="Enter new password (at least 6 characters)"
-            required
-          >
-
-          <label class="form-label" for="confirmStaffPassword">
-            Confirm New Password
-          </label>
-          <input
-            id="confirmStaffPassword"
-            name="confirmStaffPassword"
-            type="password"
-            autocomplete="new-password"
-            minlength="6"
-            placeholder="Re-enter new password"
-            required
-          >
-
-          <button class="btn btn-primary" type="submit">
-            Change Staff Password
-          </button>
-        </form>
-
         <p class="small muted" style="margin-top:14px">
           After changing the password, use the new password at your next
           Laboratory Staff login.
@@ -1836,56 +1850,7 @@ showToast(errorMessage);
     return;
   }
 
-if (event.target.id === "staffPasswordForm") {
-  event.preventDefault();
 
-  if (!currentUser || !roleIsStaff()) {
-    showToast("Only Laboratory Staff can change this password.");
-    return;
-  }
-
-  const currentPassword =
-    document.getElementById("currentStaffPassword").value;
-
-  const newPassword =
-    document.getElementById("newStaffPassword").value;
-
-  const confirmPassword =
-    document.getElementById("confirmStaffPassword").value;
-
-  if (currentPassword !== getStaffPassword()) {
-    showToast("Your current password is incorrect.");
-    document.getElementById("currentStaffPassword").value = "";
-    return;
-  }
-
-  if (newPassword.length < 6) {
-    showToast("The new password must be at least 6 characters.");
-    return;
-  }
-
-  if (newPassword !== confirmPassword) {
-    showToast("The new passwords do not match.");
-    document.getElementById("confirmStaffPassword").value = "";
-    return;
-  }
-
-  if (newPassword === currentPassword) {
-    showToast("Choose a different password from your current one.");
-    return;
-  }
-
-  try {
-    localStorage.setItem(STAFF_PASSWORD_KEY, newPassword);
-  } catch (error) {
-    console.error("Password could not be saved:", error);
-    showToast("Could not save the password in this browser.");
-    return;
-  }
-
-  event.target.reset();
-  showToast("Staff password changed successfully.");
-}
 
   if (event.target.id === "themeForm") {
     event.preventDefault();
@@ -1913,7 +1878,7 @@ if (event.target.id === "staffPasswordForm") {
 });
 
 
-document.addEventListener("click", event => {
+document.addEventListener("click", async event => {
   const button = event.target.closest("[data-action]");
   if (!button) return;
 
@@ -1940,14 +1905,24 @@ document.addEventListener("click", event => {
   if (action === "show-login") renderLogin();
   if (action === "show-welcome") renderWelcome();
 
-  if (action === "logout") {
+ if (action === "logout") {
+  try {
     stopCamera();
     closeModal();
+
+    await signOut(auth);
+
     currentUser = null;
     currentPage = "dashboard";
     searchText = "";
+
     renderWelcome();
+
+  } catch (error) {
+    console.error("Logout error:", error);
+    showToast("Could not log out. Please try again.");
   }
+}
 
   if (action === "navigate") {
     closeModal();
@@ -1955,6 +1930,7 @@ document.addEventListener("click", event => {
   }
 
   if (action === "borrow") borrowItem(id);
+
 
 if (action === "save-inventory-item") {
   if (!roleIsStaff()) {
@@ -1992,7 +1968,7 @@ if (action === "save-inventory-item") {
   const borrowedCount = data.records.filter(record =>
     record.itemId === item.id &&
     record.status === "Borrowed"
-  ).length;
+  ).reduce((total, record) => total + (record.quantity || 1), 0);
 
   if (newTotal < borrowedCount) {
     showToast(
@@ -2001,24 +1977,20 @@ if (action === "save-inventory-item") {
     return;
   }
 
-  const oldTotal = item.total;
-  const oldAvailable = item.available;
-  const oldEnabled = item.enabled;
+  try {
+    await updateDoc(doc(db, "inventory", item.id), {
+      total: newTotal,
+      available: newTotal - borrowedCount,
+      enabled: enabledInput.checked
+    });
 
-  item.total = newTotal;
-  item.available = newTotal - borrowedCount;
-  item.enabled = enabledInput.checked;
-
-  if (!saveData()) {
-    item.total = oldTotal;
-    item.available = oldAvailable;
-    item.enabled = oldEnabled;
-    return;
+    showToast(`${item.name} inventory updated successfully.`);
+  } catch (error) {
+    console.error("Inventory update error:", error);
+    showToast("Could not update inventory. Check Firebase permissions.");
   }
-
-  renderApp();
-  showToast(`${item.name} inventory updated successfully.`);
 }
+
 
   if (action === "return-record") {
     confirmReturn(button.dataset.record);
@@ -2183,6 +2155,7 @@ onAuthStateChanged(auth, async (firebaseUser) => {
 
       currentPage = "dashboard";
 startInventorySync();
+startRecordsSync();
 renderApp();
 
     } catch (error) {
@@ -2191,9 +2164,14 @@ renderApp();
     }
   } else {
   if (unsubscribeInventory) {
-    unsubscribeInventory();
-    unsubscribeInventory = null;
-  }
+  unsubscribeInventory();
+  unsubscribeInventory = null;
+}
+
+if (unsubscribeRecords) {
+  unsubscribeRecords();
+  unsubscribeRecords = null;
+}
 
   currentUser = null;
   data.items = [];
