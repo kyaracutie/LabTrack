@@ -1802,7 +1802,10 @@ document.addEventListener("submit", async event => {
       "auth/weak-password": "Your password must contain at least 6 characters.",
       "auth/user-not-found": "No account was found with this email.",
       "auth/wrong-password": "Incorrect password.",
-      "auth/network-request-failed": "Network error. Check your internet connection."
+      "auth/network-request-failed": "Network error. Check your internet connection.",
+      "permission-denied": "Firestore permission denied. Check your database rules.",
+"unauthenticated": "Please log in again.",
+"failed-precondition": "A required Firebase database condition was not met."
     };
 
     showToast(
