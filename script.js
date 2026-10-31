@@ -1,5 +1,30 @@
+import { auth, db } from "./firebase.js";
 
-"use strict";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
+
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  onSnapshot,
+  query,
+  where,
+  orderBy,
+  runTransaction,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  addDoc
+} from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+
+
 
 /* LABTRACK
    Original-style interface + student/staff roles + borrowing and returns.
@@ -180,6 +205,32 @@ function loadData() {
 }
 
 let data = loadData();
+
+let unsubscribeInventory = null;
+
+function startInventorySync() {
+  // Stop the previous listener before starting another one.
+  if (unsubscribeInventory) {
+    unsubscribeInventory();
+    unsubscribeInventory = null;
+  }
+
+  unsubscribeInventory = onSnapshot(
+    collection(db, "inventory"),
+    snapshot => {
+      data.items = snapshot.docs.map(itemDoc => ({
+        id: itemDoc.id,
+        ...itemDoc.data()
+      }));
+
+      renderApp();
+    },
+    error => {
+      console.error("Inventory sync error:", error);
+      showToast("Could not synchronize inventory.");
+    }
+  );
+}
 
 function saveData() {
   try {
@@ -365,88 +416,125 @@ function renderLogin() {
   app.innerHTML = `
     <section class="login-wrap">
       <div class="login-card">
+
         <div class="logo">
-  <img src="images/logo.png" alt="LabTrack Logo" class="logo-img">
-</div>
+          <img src="images/logo.png" alt="LabTrack Logo" class="logo-img">
+        </div>
+
         <p class="eyebrow">LABORATORY MANAGEMENT</p>
         <h1>Log in to LabTrack</h1>
-        <p class="muted">Choose your role to open the correct dashboard.</p>
+        <p class="muted">Access your laboratory account.</p>
 
         <form id="loginForm">
-          <label class="form-label" for="loginName">Full name</label>
-          <input id="loginName" name="loginName"
-                 placeholder="Enter your name" autocomplete="name" required>
 
-          <label class="form-label" for="loginRole">Login as</label>
-          <select id="loginRole" name="loginRole">
-            <option value="student">Student</option>
-            <option value="staff">Laboratory Staff</option>
-          </select>
+          <div id="nameField">
+            <label class="form-label" for="loginName">Full name</label>
+            <input
+              id="loginName"
+              name="loginName"
+              placeholder="Enter your full name"
+              autocomplete="name"
+            >
+          </div>
 
-<div id="staffPasswordField" style="display: none; margin-top: 14px;">
-  <label class="form-label" for="staffPassword">
-    Laboratory Staff Password
-  </label>
+          <label class="form-label" for="loginEmail">Email address</label>
+          <input
+            id="loginEmail"
+            name="loginEmail"
+            type="email"
+            placeholder="Enter your Gmail address"
+            autocomplete="email"
+            required
+          >
 
-  <div style="display: flex; gap: 8px; align-items: center;">
-    <input
-      id="staffPassword"
-      name="staffPassword"
-      type="password"
-      placeholder="Enter staff password"
-      autocomplete="current-password"
-      style="flex: 1; min-width: 0;"
-    >
+          <label class="form-label" for="loginPassword">Password</label>
 
-    <button
-      type="button"
-      class="btn btn-outline"
-      data-action="toggle-password"
-      data-target="staffPassword"
-    >Show</button>
-  </div>
-</div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input
+              id="loginPassword"
+              name="loginPassword"
+              type="password"
+              placeholder="Enter your password"
+              autocomplete="current-password"
+              style="flex:1; min-width:0;"
+              required
+            >
 
-          <button class="btn btn-primary btn-block" type="submit">
-            Open Dashboard →
+            <button
+              type="button"
+              class="btn btn-outline"
+              data-action="toggle-password"
+              data-target="loginPassword"
+            >Show</button>
+          </div>
+
+          <button
+            class="btn btn-primary btn-block"
+            type="submit"
+            id="loginSubmit"
+          >
+            Log In →
           </button>
+
         </form>
 
-        <p class="small muted" style="margin-top:20px">
-          Prototype login only. These roles are not protected by passwords
-          or a secure account system.
+        <div style="margin-top:16px;">
+          <button
+            class="btn btn-outline btn-block"
+            type="button"
+            id="registerToggle"
+          >
+            Create Student Account
+          </button>
+        </div>
+
+        <p class="small muted" style="margin-top:20px;">
+          Laboratory staff must use their authorized staff account.
         </p>
-        <button class="btn btn-outline btn-block" data-action="show-welcome">
+
+        <button
+          class="btn btn-outline btn-block"
+          data-action="show-welcome"
+        >
           ← Back to Welcome
         </button>
+
       </div>
     </section>
   `;
 
+  let registrationMode = false;
 
+  const form = document.getElementById("loginForm");
+  const nameField = document.getElementById("nameField");
+  const nameInput = document.getElementById("loginName");
+  const passwordInput = document.getElementById("loginPassword");
+  const submitButton = document.getElementById("loginSubmit");
+  const registerButton = document.getElementById("registerToggle");
+
+  registerButton.addEventListener("click", () => {
+    registrationMode = !registrationMode;
+
+    nameField.style.display = registrationMode ? "block" : "none";
+    nameInput.required = registrationMode;
+
+    submitButton.textContent = registrationMode
+      ? "Create Account →"
+      : "Log In →";
+
+    registerButton.textContent = registrationMode
+      ? "Already have an account? Log In"
+      : "Create Student Account";
+
+    passwordInput.autocomplete = registrationMode
+      ? "new-password"
+      : "current-password";
+  });
+
+  nameField.style.display = "none";
 }
 
-document.addEventListener("change", event => {
-  if (event.target.id !== "loginRole") return;
 
-  const passwordField =
-    document.getElementById("staffPasswordField");
-
-  const passwordInput =
-    document.getElementById("staffPassword");
-
-  if (!passwordField || !passwordInput) return;
-
-  const isStaff = event.target.value === "staff";
-
-  passwordField.style.display = isStaff ? "block" : "none";
-  passwordInput.required = isStaff;
-
-  if (!isStaff) {
-    passwordInput.value = "";
-    passwordInput.type = "password";
-  }
-});
 
 function login(name, role) {
   currentUser = { name: name.trim(), role };
@@ -1613,50 +1701,128 @@ function exportRecords() {
 /* ---------- Event handlers ---------- */
 
 
-document.addEventListener("submit", event => {
+document.addEventListener("submit", async event => {
   if (event.target.id === "loginForm") {
-    event.preventDefault();
+  event.preventDefault();
 
-    const name = document.getElementById("loginName").value.trim();
-    const role = document.getElementById("loginRole").value;
+  const nameInput = document.getElementById("loginName");
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+  const isRegistration = nameInput.required;
+  const name = nameInput.value.trim();
 
-    if (!name) {
-      showToast("Enter your name to continue.");
-      return;
+  if (isRegistration && !name) {
+    showToast("Enter your full name.");
+    return;
+  }
+
+  const submitButton = document.getElementById("loginSubmit");
+  submitButton.disabled = true;
+  submitButton.textContent = "Please wait...";
+
+  try {
+    let userCredential;
+
+    if (isRegistration) {
+      // Create a student account.
+      userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
+      await updateProfile(userCredential.user, {
+        displayName: name
+      });
+
+      await setDoc(doc(db, "users", userCredential.user.uid), {
+        name: name,
+        email: email,
+        role: "student",
+        createdAt: serverTimestamp()
+      });
+
+      showToast("Student account created successfully.");
+
+    } else {
+      // Sign in to an existing account.
+      userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
     }
 
+    const firebaseUser = userCredential.user;
 
-if (role === "staff") {
-  const enteredPassword =
-    document.getElementById("staffPassword").value;
+    // Check whether this account is the authorized staff account.
+    const staffRef = doc(db, "staff", firebaseUser.uid);
+    const staffSnapshot = await getDoc(staffRef);
 
-  if (!enteredPassword) {
-    showToast("Enter the Laboratory Staff password.");
-    return;
+    let role = "student";
+
+    if (staffSnapshot.exists() &&
+        staffSnapshot.data().role === "staff") {
+      role = "staff";
+    }
+
+    // Get the saved student profile, if one exists.
+    const userRef = doc(db, "users", firebaseUser.uid);
+    const userSnapshot = await getDoc(userRef);
+
+    const savedName = userSnapshot.exists()
+      ? userSnapshot.data().name
+      : "";
+
+    const displayName =
+      firebaseUser.displayName ||
+      savedName ||
+      name ||
+      email.split("@")[0];
+
+    currentUser = {
+      uid: firebaseUser.uid,
+      name: displayName,
+      email: firebaseUser.email,
+      role: role
+    };
+
+    currentPage = "dashboard";
+    searchText = "";
+
+    renderApp();
+
+  } catch (error) {
+    console.error("Firebase login error:", error);
+
+    const messages = {
+      "auth/email-already-in-use": "This email already has an account. Please log in.",
+      "auth/invalid-email": "Enter a valid email address.",
+      "auth/invalid-credential": "Incorrect email or password.",
+      "auth/weak-password": "Your password must contain at least 6 characters.",
+      "auth/user-not-found": "No account was found with this email.",
+      "auth/wrong-password": "Incorrect password.",
+      "auth/network-request-failed": "Network error. Check your internet connection."
+    };
+
+    showToast(
+      messages[error.code] ||
+      "Could not complete login. Check the browser console for details."
+    );
+
+  } finally {
+    const button = document.getElementById("loginSubmit");
+
+    if (button) {
+      button.disabled = false;
+      button.textContent = isRegistration
+        ? "Create Account →"
+        : "Log In →";
+    }
   }
 
-  if (enteredPassword !== getStaffPassword()) {
-    showToast("Incorrect Laboratory Staff password.");
-    document.getElementById("staffPassword").value = "";
-    document.getElementById("staffPassword").focus();
-    return;
-  }
+  return;
 }
-
-    console.log("Login form submitted.");
-    console.log("Selected role:", role);
-
-    try {
-      login(name, role);
-      console.log("Current user:", currentUser);
-      console.log("Current page:", currentPage);
-    } catch (error) {
-      console.error("Dashboard loading error:", error);
-      showToast("Dashboard error. Open F12 Console for details.");
-    }
-
-    return;
-  }
 
   if (event.target.id === "manualScanForm") {
     event.preventDefault();
@@ -1982,3 +2148,51 @@ document.addEventListener("visibilitychange", () => {
 // Start at the original welcome screen and restore the selected theme.
 applySavedTheme();
 renderWelcome();
+
+onAuthStateChanged(auth, async (firebaseUser) => {
+  if (firebaseUser) {
+    try {
+      const staffRef = doc(db, "staff", firebaseUser.uid);
+      const staffSnapshot = await getDoc(staffRef);
+
+      const userRef = doc(db, "users", firebaseUser.uid);
+      const userSnapshot = await getDoc(userRef);
+
+      const role =
+        staffSnapshot.exists() &&
+        staffSnapshot.data().role === "staff"
+          ? "staff"
+          : "student";
+
+      const savedName = userSnapshot.exists()
+        ? userSnapshot.data().name
+        : "";
+
+      currentUser = {
+        uid: firebaseUser.uid,
+        name: firebaseUser.displayName ||
+              savedName ||
+              firebaseUser.email.split("@")[0],
+        email: firebaseUser.email,
+        role: role
+      };
+
+      currentPage = "dashboard";
+startInventorySync();
+renderApp();
+
+    } catch (error) {
+      console.error("Authentication state error:", error);
+      showToast("Could not load your account.");
+    }
+  } else {
+  if (unsubscribeInventory) {
+    unsubscribeInventory();
+    unsubscribeInventory = null;
+  }
+
+  currentUser = null;
+  data.items = [];
+  renderWelcome();
+}
+});
