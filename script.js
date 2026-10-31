@@ -1190,8 +1190,11 @@ function renderScannerPage() {
         </button>
 
         <video id="scanVideo" class="scan-video hidden"
-               autoplay muted playsinline></video>
-        <p id="cameraStatus" class="small muted" aria-live="polite"></p>
+       autoplay muted playsinline></video>
+
+<div id="qrFallbackReader"></div>
+
+<p id="cameraStatus" class="small muted" aria-live="polite"></p>
       </section>
 
       <section class="panel">
@@ -1318,20 +1321,14 @@ async function startCamera() {
   if (!video || !status) return;
 
   if (!navigator.mediaDevices?.getUserMedia) {
-    status.textContent = "Camera access is unavailable. Use manual ID entry.";
-    return;
-  }
-
-  if (!("BarcodeDetector" in window)) {
     status.textContent =
-      "This browser does not support built-in QR detection. Use manual ID entry or try a supported browser.";
+      "Camera access is unavailable. Use manual ID entry.";
     return;
   }
 
   try {
     stopCamera();
 
-    const detector = new BarcodeDetector({ formats: ["qr_code"] });
     cameraStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: { ideal: "environment" } },
       audio: false
@@ -1344,35 +1341,86 @@ async function startCamera() {
     status.textContent = "Camera active. Point it at a QR code.";
     cameraActive = true;
 
-    const scanFrame = async () => {
-      if (!cameraActive || !cameraStream) return;
+    // Method 1: Use the browser's built-in QR detector.
+    if ("BarcodeDetector" in window) {
+      const detector = new BarcodeDetector({
+        formats: ["qr_code"]
+      });
 
-      try {
-        if (video.readyState >= 2) {
-          const codes = await detector.detect(video);
+      const scanFrame = async () => {
+        if (!cameraActive || !cameraStream) return;
 
-          if (codes.length && codes[0].rawValue) {
-            const value = codes[0].rawValue;
-            stopCamera();
-            processScannedCode(value);
-            return;
+        try {
+          if (video.readyState >= 2) {
+            const codes = await detector.detect(video);
+
+            if (codes.length && codes[0].rawValue) {
+              const value = codes[0].rawValue;
+
+              stopCamera();
+              processScannedCode(value);
+              return;
+            }
           }
+        } catch (error) {
+          console.error("QR detection error:", error);
         }
-      } catch (error) {
-        console.error("QR detection error:", error);
-      }
 
-      if (cameraActive) requestAnimationFrame(scanFrame);
-    };
+        if (cameraActive) {
+          requestAnimationFrame(scanFrame);
+        }
+      };
 
-    requestAnimationFrame(scanFrame);
+      requestAnimationFrame(scanFrame);
+      return;
+    }
+
+    // Method 2: Use html5-qrcode if built-in detection is unavailable.
+    if (typeof Html5Qrcode === "undefined") {
+      status.textContent =
+        "QR detection is unavailable. Use manual ID entry.";
+      stopCamera();
+      return;
+    }
+
+    const fallback = new Html5Qrcode("qrFallbackReader");
+    window.labTrackQrFallback = fallback;
+
+    // Stop the existing video stream before starting the fallback scanner.
+    stopCamera();
+
+    status.textContent = "Starting compatible QR scanner...";
+
+    await fallback.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 220, height: 220 } },
+      (decodedText) => {
+        fallback.stop().catch(console.error);
+        window.labTrackQrFallback = null;
+        processScannedCode(decodedText);
+      },
+      () => {}
+    );
+
+    cameraActive = true;
+    status.textContent = "Camera active. Point it at a QR code.";
+
   } catch (error) {
     console.error("Camera startup failed:", error);
+
     status.textContent =
       "Camera could not start. Allow camera permission or use manual ID entry.";
+
     stopCamera();
+
+    if (window.labTrackQrFallback) {
+      window.labTrackQrFallback.stop().catch(console.error);
+      window.labTrackQrFallback = null;
+    }
   }
 }
+
+
 
 function stopCamera() {
   cameraActive = false;
@@ -1389,7 +1437,15 @@ function stopCamera() {
     video.srcObject = null;
     video.classList.add("hidden");
   }
+
+  if (window.labTrackQrFallback) {
+    window.labTrackQrFallback.stop()
+      .catch(error => console.error("QR scanner stop error:", error));
+
+    window.labTrackQrFallback = null;
+  }
 }
+
 
 /* ---------- Apparatus guide ---------- */
 
