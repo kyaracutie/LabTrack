@@ -1,0 +1,54 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#173f35">
+  <title>LabTrack | Laboratory Assistant</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <div id="app">
+    <section class="welcome-screen">
+      <div class="welcome-content">
+        <div class="logo">
+    <img src="images/logo.png" alt="LabTrack Logo" class="logo-img">
+    <span>LabTrack</span>
+</div>
+        <p class="eyebrow">YOUR DIGITAL LABORATORY ASSISTANT</p>
+        <h1>Welcome to <span>LabTrack.</span></h1>
+        <p class="welcome-description">
+          Identify laboratory apparatus, learn how to use them,
+          and keep track of every borrowing and return in one place.
+        </p>
+        <button class="btn btn-primary" data-action="show-login">
+          Get Started <span>→</span>
+        </button>
+        <div class="welcome-features">
+          <span>⌕ QR Scanner</span>
+          <span>◷ Borrowing Logbook</span>
+          <span>▦ Apparatus Guide</span>
+        </div>
+      </div>
+      <div class="welcome-art">
+        <div class="art-circle"></div>
+        <div class="art-card art-card-one">
+          <span class="art-icon">⚗</span>
+          <span>Laboratory tools</span>
+        </div>
+        <div class="art-card art-card-two">
+          <span class="art-icon">▦</span>
+          <span>Smart inventory</span>
+        </div>
+        <div class="art-glass">⚗</div>
+        <div class="art-caption">CHEM-Q Tech</div>
+      </div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="modal-root"></div>
+</body>
+</html>
