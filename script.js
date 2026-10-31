@@ -1808,10 +1808,11 @@ document.addEventListener("submit", async event => {
 "failed-precondition": "A required Firebase database condition was not met."
     };
 
-    showToast(
-      messages[error.code] ||
-      "Could not complete login. Check the browser console for details."
-    );
+    const errorMessage =
+  messages[error.code] ||
+  `${error.code || "Unknown error"}: ${error.message || "No additional details"}`;
+
+showToast(errorMessage);
 
   } finally {
     const button = document.getElementById("loginSubmit");
