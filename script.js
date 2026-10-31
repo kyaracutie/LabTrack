@@ -1010,8 +1010,9 @@ async function completeBorrow(itemId) {
       }
 
       transaction.update(itemRef, {
-        available: item.available - 1
-      });
+  available: item.available - 1,
+  lastTransactionId: recordRef.id
+});
 
       transaction.set(recordRef, {
         studentUid: currentUser.uid,
@@ -1119,8 +1120,9 @@ async function completeReturn(recordId) {
       });
 
       transaction.update(itemRef, {
-        available: item.available + 1
-      });
+  available: item.available + 1,
+  lastTransactionId: recordRef.id
+});
     });
 
     closeModal();
