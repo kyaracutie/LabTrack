@@ -1489,10 +1489,20 @@ function renderGuidePage() {
         </div>
 
         <h3>Common Uses</h3>
-        <ul>${selected.uses.map(use => `<li>${escapeHTML(use)}</li>`).join("")}</ul>
+        <ul>
+  ${(Array.isArray(selected.uses)
+    ? selected.uses
+    : [selected.uses || "No usage information available."]
+  ).map(use => `<li>${escapeHTML(use)}</li>`).join("")}
+</ul>
 
         <h3>Safety Reminders</h3>
-        <ul>${selected.safety.map(rule => `<li>${escapeHTML(rule)}</li>`).join("")}</ul>
+        <ul>
+  ${(Array.isArray(selected.safety)
+    ? selected.safety
+    : [selected.safety || "No safety reminders available."]
+  ).map(rule => `<li>${escapeHTML(rule)}</li>`).join("")}
+</ul>
 
         ${roleIsStaff() ? "" : `
           <button class="btn btn-primary"
