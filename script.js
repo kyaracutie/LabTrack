@@ -1126,21 +1126,20 @@ showToast("Borrowing request submitted! Waiting for staff approval.");
 currentPage = "myrecords";
 renderApp();
 
+
 } catch (error) {
-    console.error("Borrowing transaction error:", error);
-    console.error("Borrowing request error:", error);
+  console.error("Borrowing request error:", error);
 
-const messages = {
-APPARATUS_NOT_FOUND: "Apparatus not found.",
-APPARATUS_DISABLED: "This apparatus is currently disabled.",
-OUT_OF_STOCK: "No good-condition units are currently available."
-};
+  const messages = {
+    APPARATUS_NOT_FOUND: "Apparatus not found.",
+    APPARATUS_DISABLED: "This apparatus is currently disabled.",
+    OUT_OF_STOCK: "No good-condition units are currently available."
+  };
 
-showToast(
-messages[error.message] ||
-      "Could not complete borrowing. Check your connection and Firebase permissions."
-      "Could not submit request. Check your connection and Firebase permissions."
-);
+  showToast(
+    messages[error.message] ||
+    "Could not submit request. Check your connection and Firebase permissions."
+  );
 }
 }
 
