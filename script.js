@@ -1843,8 +1843,7 @@ return `
 
                   ${showActionColumn ? `
                    <td>
-                      ${record.status === "Borrowed" ? `
-                      
+                    
 ${staffView && record.status === "Pending" ? `
   <button class="btn btn-primary btn-small"
     data-action="approve-request"
@@ -1858,6 +1857,35 @@ ${staffView && record.status === "Pending" ? `
     Reject
   </button>
 ` : ""}
+
+${showStudentAction && record.status === "Borrowed" ? `
+  <button class="btn btn-secondary btn-small"
+    data-action="return-record"
+    data-record="${escapeHTML(String(record.id))}">
+    Confirm Return
+  </button>
+` : ""}
+
+${record.status === "Pending" && !staffView
+  ? "Waiting for staff approval"
+  : ""}
+
+${record.status === "Rejected" && !staffView
+  ? "Request rejected"
+  : ""}
+
+${record.status === "Approved" && !staffView
+  ? "Approved"
+  : ""}
+
+${record.status === "Returned" && showStudentAction
+  ? "Completed"
+  : ""}
+
+${!staffView && record.status === "Borrowed" && !showStudentAction
+  ? "—"
+  : ""}
+</td>
 
 
                        <button class="btn btn-secondary btn-small"
