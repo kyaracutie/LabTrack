@@ -387,12 +387,11 @@ record.status === "Borrowed"
 
 
 function findActiveRecord(itemId, studentUid) {
-return data.records.find(record =>
-record.itemId === itemId &&
-    record.status === "Borrowed" &&
+  return data.records.find(record =>
+    record.itemId === itemId &&
     ["Pending", "Borrowed"].includes(record.status) &&
-record.studentUid === studentUid
-);
+    record.studentUid === studentUid
+  );
 }
 
 
@@ -1775,107 +1774,67 @@ return `
 /* ---------- Borrowing logbook and staff records ---------- */
 
 
+
 function recordsTable(records, showStudentAction, title) {
   const staffView = roleIsStaff();
   const showActionColumn = showStudentAction || staffView;
 
-return `
-   <section class="panel">
-     <div class="panel-header">
-       <div>
-         <h3>${escapeHTML(title)}</h3>
-         <p>Borrowing status, timestamps, and transaction history.</p>
-       </div>
-     </div>
+  return `
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h3>${escapeHTML(title)}</h3>
+          <p>Borrowing status, timestamps, and transaction history.</p>
+        </div>
+      </div>
 
-     ${records.length ? `
-       <div class="table-wrap">
-         <table>
-           <thead>
-             <tr>
-               <th>Record</th>
-               <th>Student</th>
-               <th>Apparatus</th>
-               <th>Borrowed At</th>
-               <th>Returned At</th>
-               <th>Status</th>
-                ${showStudentAction ? "<th>Action</th>" : ""}
+      ${records.length ? `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Record</th>
+                <th>Student</th>
+                <th>Apparatus</th>
+                <th>Requested / Borrowed At</th>
+                <th>Returned At</th>
+                <th>Status</th>
                 ${showActionColumn ? "<th>Action</th>" : ""}
-             </tr>
-           </thead>
+              </tr>
+            </thead>
 
-           <tbody>
-             ${records.map(record => `
-               <tr>
-                  <td>#${record.id}</td>
+            <tbody>
+              ${records.map(record => `
+                <tr>
                   <td>#${escapeHTML(String(record.id))}</td>
 
-                 <td>${escapeHTML(record.studentName)}</td>
+                  <td>${escapeHTML(record.studentName)}</td>
 
-                 <td>
-                   ${escapeHTML(record.itemName)}
-                    <div class="small muted">${escapeHTML(record.itemId)}</div>
+                  <td>
+                    ${escapeHTML(record.itemName)}
                     <div class="small muted">
                       ${escapeHTML(record.itemId)}
                     </div>
-                 </td>
-                  <td>${dateText(record.borrowedAt)}</td>
+                  </td>
 
-                  <td>${dateText(record.borrowedAt || record.requestedAt)}</td>
-                 <td>${dateText(record.returnedAt)}</td>
+                  <td>
+                    ${dateText(record.borrowedAt || record.requestedAt)}
+                  </td>
 
-                 <td>${statusBadge(record.status)}</td>
-                  ${showStudentAction ? `
+                  <td>${dateText(record.returnedAt)}</td>
+
+                  <td>${statusBadge(record.status)}</td>
 
                   ${showActionColumn ? `
-                   <td>
-                    
-${staffView && record.status === "Pending" ? `
-  <button class="btn btn-primary btn-small"
-    data-action="approve-request"
-    data-record="${escapeHTML(String(record.id))}">
-    Approve
-  </button>
+                    <td>
+                      ${staffView && record.status === "Pending" ? `
+                        <button class="btn btn-primary btn-small"
+                          data-action="approve-request"
+                          data-record="${escapeHTML(String(record.id))}">
+                          Approve
+                        </button>
 
-  <button class="btn btn-danger btn-small"
-    data-action="reject-request"
-    data-record="${escapeHTML(String(record.id))}">
-    Reject
-  </button>
-` : ""}
-
-${showStudentAction && record.status === "Borrowed" ? `
-  <button class="btn btn-secondary btn-small"
-    data-action="return-record"
-    data-record="${escapeHTML(String(record.id))}">
-    Confirm Return
-  </button>
-` : ""}
-
-${record.status === "Pending" && !staffView
-  ? "Waiting for staff approval"
-  : ""}
-
-${record.status === "Rejected" && !staffView
-  ? "Request rejected"
-  : ""}
-
-${record.status === "Approved" && !staffView
-  ? "Approved"
-  : ""}
-
-${record.status === "Returned" && showStudentAction
-  ? "Completed"
-  : ""}
-
-${!staffView && record.status === "Borrowed" && !showStudentAction
-  ? "—"
-  : ""}
-</td>
-
-
-                       <button class="btn btn-secondary btn-small"
-                          data-action="return-record" data-record="${record.id}">
+                        <button class="btn btn-danger btn-small"
                           data-action="reject-request"
                           data-record="${escapeHTML(String(record.id))}">
                           Reject
@@ -1886,9 +1845,8 @@ ${!staffView && record.status === "Borrowed" && !showStudentAction
                         <button class="btn btn-secondary btn-small"
                           data-action="return-record"
                           data-record="${escapeHTML(String(record.id))}">
-                         Confirm Return
-                       </button>
-                      ` : "—"}
+                          Confirm Return
+                        </button>
                       ` : ""}
 
                       ${record.status === "Pending" && !staffView
@@ -1899,10 +1857,6 @@ ${!staffView && record.status === "Borrowed" && !showStudentAction
                         ? "Request rejected"
                         : ""}
 
-                      ${record.status === "Approved" && !staffView
-                        ? "Approved"
-                        : ""}
-
                       ${record.status === "Returned" && showStudentAction
                         ? "Completed"
                         : ""}
@@ -1910,23 +1864,22 @@ ${!staffView && record.status === "Borrowed" && !showStudentAction
                       ${!staffView && record.status === "Borrowed" && !showStudentAction
                         ? "—"
                         : ""}
-                   </td>
-                 ` : ""}
-               </tr>
-             `).join("")}
-           </tbody>
-         </table>
-       </div>
-     ` : `
-       <div class="empty-state">
-         <div style="font-size:2rem">◷</div>
-         <strong>No transactions yet</strong>
-          <p>Borrowed and returned apparatus will appear here.</p>
+                    </td>
+                  ` : ""}
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      ` : `
+        <div class="empty-state">
+          <div style="font-size:2rem">◷</div>
+          <strong>No transactions yet</strong>
           <p>Borrowing requests and return records will appear here.</p>
-       </div>
-     `}
-   </section>
- `;
+        </div>
+      `}
+    </section>
+  `;
 }
 
 
