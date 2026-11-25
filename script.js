@@ -385,13 +385,15 @@ function getBorrowedCount(itemId) {
 }
 
 
+
 function findActiveRecord(itemId, studentUid) {
   return data.records.find(record =>
     record.itemId === itemId &&
-    record.status === "Borrowed" &&
+    ["Pending", "Borrowed"].includes(record.status) &&
     record.studentUid === studentUid
   );
 }
+
 
 function activeRecords(name = null) {
   return data.records.filter(record =>
@@ -1069,6 +1071,7 @@ function borrowItem(itemId) {
 }
 
 
+
 async function completeBorrow(itemId) {
   if (!currentUser || roleIsStaff()) return;
 
@@ -1077,7 +1080,7 @@ async function completeBorrow(itemId) {
 
   try {
     if (findActiveRecord(itemId, currentUser.uid)) {
-      showToast("You already have an active borrowing for this apparatus.");
+      showToast("You already have an active borrowing or pending request.");
       closeModal();
       return;
     }
@@ -1101,36 +1104,27 @@ async function completeBorrow(itemId) {
         throw new Error("OUT_OF_STOCK");
       }
 
-      const updatedCounts = {
-        ...counts,
-        good: counts.good - 1
-      };
-
-      transaction.update(itemRef, {
-        available: updatedCounts.good,
-        conditionCounts: updatedCounts,
-        lastTransactionId: recordRef.id
-      });
-
       transaction.set(recordRef, {
         studentUid: currentUser.uid,
         studentName: currentUser.name,
         itemId: itemId,
         itemName: item.name,
         quantity: 1,
-        borrowedAt: serverTimestamp(),
+        requestedAt: serverTimestamp(),
+        borrowedAt: null,
         returnedAt: null,
-        status: "Borrowed"
+        status: "Pending"
       });
     });
 
     closeModal();
-    showToast("Borrowing recorded successfully.");
+    showToast("Borrowing request submitted! Waiting for staff approval.");
+
     currentPage = "myrecords";
     renderApp();
 
   } catch (error) {
-    console.error("Borrowing transaction error:", error);
+    console.error("Borrowing request error:", error);
 
     const messages = {
       APPARATUS_NOT_FOUND: "Apparatus not found.",
@@ -1140,10 +1134,11 @@ async function completeBorrow(itemId) {
 
     showToast(
       messages[error.message] ||
-      "Could not complete borrowing. Check your connection and Firebase permissions."
+      "Could not submit request. Check your connection and Firebase permissions."
     );
   }
 }
+
 
 
 function confirmReturn(recordId) {
@@ -1176,6 +1171,142 @@ function confirmReturn(recordId) {
     () => completeReturn(record.id)
   );
 }
+
+
+async function approveBorrowRequest(recordId) {
+  if (!currentUser || !roleIsStaff()) {
+    showToast("Only laboratory staff can approve requests.");
+    return;
+  }
+
+  const recordRef = doc(db, "records", String(recordId));
+
+  try {
+    await runTransaction(db, async transaction => {
+      const recordSnapshot = await transaction.get(recordRef);
+
+      if (!recordSnapshot.exists()) {
+        throw new Error("RECORD_NOT_FOUND");
+      }
+
+      const record = recordSnapshot.data();
+
+      if (record.status !== "Pending") {
+        throw new Error("NOT_PENDING");
+      }
+
+      const itemRef = doc(db, "inventory", record.itemId);
+      const itemSnapshot = await transaction.get(itemRef);
+
+      if (!itemSnapshot.exists()) {
+        throw new Error("APPARATUS_NOT_FOUND");
+      }
+
+      const item = itemSnapshot.data();
+
+      if (item.enabled === false) {
+        throw new Error("APPARATUS_DISABLED");
+      }
+
+      const counts = getConditionCounts(item);
+
+      if (counts.good < Number(record.quantity || 1)) {
+        throw new Error("OUT_OF_STOCK");
+      }
+
+      const quantity = Number(record.quantity || 1);
+
+      const updatedCounts = {
+        ...counts,
+        good: counts.good - quantity
+      };
+
+      transaction.update(itemRef, {
+        available: updatedCounts.good,
+        conditionCounts: updatedCounts,
+        lastTransactionId: recordRef.id
+      });
+
+      transaction.update(recordRef, {
+  status: "Borrowed",
+  borrowedAt: serverTimestamp(),
+  approvedAt: serverTimestamp(),
+  approvedBy: currentUser.uid,
+  approvedByName: currentUser.name
+});
+    });
+
+    showToast("Borrowing request approved successfully.");
+    renderApp();
+
+  } catch (error) {
+    console.error("Approval error:", error);
+
+    const messages = {
+      RECORD_NOT_FOUND: "Borrowing request not found.",
+      NOT_PENDING: "This request has already been processed.",
+      APPARATUS_NOT_FOUND: "Apparatus not found.",
+      APPARATUS_DISABLED: "This apparatus is currently disabled.",
+      OUT_OF_STOCK: "There are not enough good-condition units available."
+    };
+
+    showToast(
+      messages[error.message] ||
+      "Could not approve request. Check Firebase permissions."
+    );
+  }
+}
+
+
+async function rejectBorrowRequest(recordId) {
+  if (!currentUser || !roleIsStaff()) {
+    showToast("Only laboratory staff can reject requests.");
+    return;
+  }
+
+  const recordRef = doc(db, "records", String(recordId));
+
+  try {
+    await runTransaction(db, async transaction => {
+      const recordSnapshot = await transaction.get(recordRef);
+
+      if (!recordSnapshot.exists()) {
+        throw new Error("RECORD_NOT_FOUND");
+      }
+
+      const record = recordSnapshot.data();
+
+      if (record.status !== "Pending") {
+        throw new Error("NOT_PENDING");
+      }
+
+      transaction.update(recordRef, {
+        status: "Rejected",
+        rejectedAt: serverTimestamp(),
+        rejectedBy: currentUser.uid,
+        rejectedByName: currentUser.name
+      });
+    });
+
+    showToast("Borrowing request rejected successfully.");
+    renderApp();
+
+  } catch (error) {
+    console.error("Rejection error:", error);
+
+    const messages = {
+      RECORD_NOT_FOUND: "Borrowing request not found.",
+      NOT_PENDING: "This request has already been processed."
+    };
+
+    showToast(
+      messages[error.message] ||
+      "Could not reject request. Check Firebase permissions."
+    );
+  }
+}
+
+
 
 async function completeReturn(recordId) {
   if (!currentUser || roleIsStaff()) return;
@@ -1639,7 +1770,11 @@ function renderGuidePage() {
 
 /* ---------- Borrowing logbook and staff records ---------- */
 
+
 function recordsTable(records, showStudentAction, title) {
+  const staffView = roleIsStaff();
+  const showActionColumn = showStudentAction || staffView;
+
   return `
     <section class="panel">
       <div class="panel-header">
@@ -1660,29 +1795,81 @@ function recordsTable(records, showStudentAction, title) {
                 <th>Borrowed At</th>
                 <th>Returned At</th>
                 <th>Status</th>
-                ${showStudentAction ? "<th>Action</th>" : ""}
+                ${showActionColumn ? "<th>Action</th>" : ""}
               </tr>
             </thead>
+
             <tbody>
               ${records.map(record => `
                 <tr>
-                  <td>#${record.id}</td>
+                  <td>#${escapeHTML(String(record.id))}</td>
+
                   <td>${escapeHTML(record.studentName)}</td>
+
                   <td>
                     ${escapeHTML(record.itemName)}
-                    <div class="small muted">${escapeHTML(record.itemId)}</div>
+                    <div class="small muted">
+                      ${escapeHTML(record.itemId)}
+                    </div>
                   </td>
-                  <td>${dateText(record.borrowedAt)}</td>
+
+                  <td>${dateText(record.borrowedAt || record.requestedAt)}</td>
                   <td>${dateText(record.returnedAt)}</td>
+
                   <td>${statusBadge(record.status)}</td>
-                  ${showStudentAction ? `
+
+                  ${showActionColumn ? `
                     <td>
-                      ${record.status === "Borrowed" ? `
+                      
+${staffView && record.status === "Pending" ? `
+  <button class="btn btn-primary btn-small"
+    data-action="approve-request"
+    data-record="${escapeHTML(String(record.id))}">
+    Approve
+  </button>
+
+  <button class="btn btn-danger btn-small"
+    data-action="reject-request"
+    data-record="${escapeHTML(String(record.id))}">
+    Reject
+  </button>
+` : ""}
+
+
                         <button class="btn btn-secondary btn-small"
-                          data-action="return-record" data-record="${record.id}">
+                          data-action="reject-request"
+                          data-record="${escapeHTML(String(record.id))}">
+                          Reject
+                        </button>
+                      ` : ""}
+
+                      ${showStudentAction && record.status === "Borrowed" ? `
+                        <button class="btn btn-secondary btn-small"
+                          data-action="return-record"
+                          data-record="${escapeHTML(String(record.id))}">
                           Confirm Return
                         </button>
-                      ` : "—"}
+                      ` : ""}
+
+                      ${record.status === "Pending" && !staffView
+                        ? "Waiting for staff approval"
+                        : ""}
+
+                      ${record.status === "Rejected" && !staffView
+                        ? "Request rejected"
+                        : ""}
+
+                      ${record.status === "Approved" && !staffView
+                        ? "Approved"
+                        : ""}
+
+                      ${record.status === "Returned" && showStudentAction
+                        ? "Completed"
+                        : ""}
+
+                      ${!staffView && record.status === "Borrowed" && !showStudentAction
+                        ? "—"
+                        : ""}
                     </td>
                   ` : ""}
                 </tr>
@@ -1694,12 +1881,13 @@ function recordsTable(records, showStudentAction, title) {
         <div class="empty-state">
           <div style="font-size:2rem">◷</div>
           <strong>No transactions yet</strong>
-          <p>Borrowed and returned apparatus will appear here.</p>
+          <p>Borrowing requests and return records will appear here.</p>
         </div>
       `}
     </section>
   `;
 }
+
 
 function renderMyRecords() {
   const records = data.records
@@ -2068,6 +2256,20 @@ document.addEventListener("click", async event => {
   if (!button) return;
 
   const action = button.dataset.action;
+
+  
+const recordId = button.dataset.record;
+
+if (action === "approve-request") {
+  await approveBorrowRequest(recordId);
+  return;
+}
+
+if (action === "reject-request") {
+  await rejectBorrowRequest(recordId);
+  return;
+}
+
   if (action === "toggle-password") {
   const targetId = button.dataset.target;
   const passwordInput = document.getElementById(targetId);
