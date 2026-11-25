@@ -1087,54 +1087,41 @@ closeModal();
 return;
 }
 
+
 await runTransaction(db, async transaction => {
-const itemSnapshot = await transaction.get(itemRef);
+  const itemSnapshot = await transaction.get(itemRef);
 
-if (!itemSnapshot.exists()) {
-throw new Error("APPARATUS_NOT_FOUND");
-}
+  if (!itemSnapshot.exists()) {
+    throw new Error("APPARATUS_NOT_FOUND");
+  }
 
-const item = itemSnapshot.data();
+  const item = itemSnapshot.data();
 
-if (item.enabled === false) {
-throw new Error("APPARATUS_DISABLED");
-}
+  if (item.enabled === false) {
+    throw new Error("APPARATUS_DISABLED");
+  }
 
-const counts = getConditionCounts(item);
+  const counts = getConditionCounts(item);
 
-if (counts.good < 1) {
-throw new Error("OUT_OF_STOCK");
-}
+  if (counts.good < 1) {
+    throw new Error("OUT_OF_STOCK");
+  }
 
-      const updatedCounts = {
-        ...counts,
-        good: counts.good - 1
-      };
-
-      transaction.update(itemRef, {
-        available: updatedCounts.good,
-        conditionCounts: updatedCounts,
-        lastTransactionId: recordRef.id
-      });
-
-transaction.set(recordRef, {
-studentUid: currentUser.uid,
-studentName: currentUser.name,
-itemId: itemId,
-itemName: item.name,
-quantity: 1,
-        borrowedAt: serverTimestamp(),
-        requestedAt: serverTimestamp(),
-        borrowedAt: null,
-returnedAt: null,
-        status: "Borrowed"
-        status: "Pending"
-});
+  transaction.set(recordRef, {
+    studentUid: currentUser.uid,
+    studentName: currentUser.name,
+    itemId: itemId,
+    itemName: item.name,
+    quantity: 1,
+    requestedAt: serverTimestamp(),
+    borrowedAt: null,
+    returnedAt: null,
+    status: "Pending"
+  });
 });
 
 closeModal();
-    showToast("Borrowing recorded successfully.");
-    showToast("Borrowing request submitted! Waiting for staff approval.");
+showToast("Borrowing request submitted! Waiting for staff approval.");
 
 currentPage = "myrecords";
 renderApp();
