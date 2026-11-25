@@ -1072,6 +1072,7 @@ function borrowItem(itemId) {
 
 
 
+
 async function completeBorrow(itemId) {
   if (!currentUser || roleIsStaff()) return;
 
