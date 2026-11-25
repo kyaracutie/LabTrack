@@ -326,6 +326,65 @@ function findItem(id) {
   return data.items.find(item => item.id.toUpperCase() === normalized);
 }
 
+
+// ---------- Apparatus Condition Management ----------
+
+const CONDITION_KEYS = [
+  "good",
+  "needsCleaning",
+  "needsRepair",
+  "damaged",
+  "underMaintenance",
+  "needsInspection"
+];
+
+const CONDITION_LABELS = {
+  good: "Good",
+  needsCleaning: "Needs Cleaning",
+  needsRepair: "Needs Repair",
+  damaged: "Damaged",
+  underMaintenance: "Under Maintenance",
+  needsInspection: "Needs Inspection"
+};
+
+// Get saved condition quantities.
+// Existing inventory without condition data starts with
+// its currently available quantity classified as Good.
+function getConditionCounts(item) {
+  const saved = item.conditionCounts || {};
+
+  return {
+    good: Number(saved.good ?? item.available ?? 0),
+    needsCleaning: Number(saved.needsCleaning ?? 0),
+    needsRepair: Number(saved.needsRepair ?? 0),
+    damaged: Number(saved.damaged ?? 0),
+    underMaintenance: Number(saved.underMaintenance ?? 0),
+    needsInspection: Number(saved.needsInspection ?? 0)
+  };
+}
+
+// Calculate the total number of units in all condition categories.
+function totalConditionCounts(counts) {
+  return CONDITION_KEYS.reduce(
+    (sum, key) => sum + Number(counts[key] || 0),
+    0
+  );
+}
+
+// Count apparatus currently borrowed by students.
+function getBorrowedCount(itemId) {
+  return data.records
+    .filter(record =>
+      record.itemId === itemId &&
+      record.status === "Borrowed"
+    )
+    .reduce(
+      (sum, record) => sum + (record.quantity || 1),
+      0
+    );
+}
+
+
 function findActiveRecord(itemId, studentUid) {
   return data.records.find(record =>
     record.itemId === itemId &&
@@ -847,6 +906,7 @@ function renderApparatusCards(items) {
   `).join("");
 }
 
+
 function renderInventoryTable(showTitle = true) {
   return `
     <section class="panel">
@@ -867,55 +927,84 @@ function renderInventoryTable(showTitle = true) {
               <th>Apparatus</th>
               <th>Location</th>
               <th>Total Units</th>
+              <th>Good</th>
+              <th>Needs Cleaning</th>
+              <th>Needs Repair</th>
+              <th>Damaged</th>
+              <th>Under Maintenance</th>
+              <th>Needs Inspection</th>
               <th>Available</th>
               <th>Enable Borrowing</th>
               <th>Status</th>
               <th>Action</th>
             </tr>
           </thead>
+
           <tbody>
-            ${data.items.map(item => `
-              <tr>
-                <td>${escapeHTML(item.id)}</td>
-                <td>${escapeHTML(item.name)}</td>
-                <td>${escapeHTML(item.location)}</td>
-                <td>
-                  <input
-                    type="number"
-                    id="inventory-total-${escapeHTML(item.id)}"
-                    min="0"
-                    step="1"
-                    value="${item.total}"
-                    aria-label="Total units for ${escapeHTML(item.name)}"
-                    style="width:90px"
-                  >
-                </td>
-                <td><strong>${item.available}</strong></td>
-                <td>
-                  <input
-                    type="checkbox"
-                    id="inventory-enabled-${escapeHTML(item.id)}"
-                    ${item.enabled !== false ? "checked" : ""}
-                    aria-label="Enable borrowing for ${escapeHTML(item.name)}"
-                    style="width:auto"
-                  >
-                </td>
-                <td>${stockBadge(item)}</td>
-                <td>
-                  <button
-                    class="btn btn-primary btn-small"
-                    data-action="save-inventory-item"
-                    data-id="${escapeHTML(item.id)}"
-                  >Save</button>
-                </td>
-              </tr>
-            `).join("")}
+            ${data.items.map(item => {
+              const counts = getConditionCounts(item);
+
+              return `
+                <tr>
+                  <td>${escapeHTML(item.id)}</td>
+                  <td>${escapeHTML(item.name)}</td>
+                  <td>${escapeHTML(item.location)}</td>
+
+                  <td>
+                    <input
+                      type="number"
+                      id="inventory-total-${escapeHTML(item.id)}"
+                      min="0"
+                      step="1"
+                      value="${item.total}"
+                      style="width:75px"
+                    >
+                  </td>
+
+                  ${CONDITION_KEYS.map(key => `
+                    <td>
+                      <input
+                        type="number"
+                        id="condition-${key}-${escapeHTML(item.id)}"
+                        min="0"
+                        step="1"
+                        value="${counts[key]}"
+                        aria-label="${CONDITION_LABELS[key]} for ${escapeHTML(item.name)}"
+                        style="width:75px"
+                      >
+                    </td>
+                  `).join("")}
+
+                  <td><strong>${item.available}</strong></td>
+
+                  <td>
+                    <input
+                      type="checkbox"
+                      id="inventory-enabled-${escapeHTML(item.id)}"
+                      ${item.enabled !== false ? "checked" : ""}
+                      style="width:auto"
+                    >
+                  </td>
+
+                  <td>${stockBadge(item)}</td>
+
+                  <td>
+                    <button
+                      class="btn btn-primary btn-small"
+                      data-action="save-inventory-item"
+                      data-id="${escapeHTML(item.id)}"
+                    >Save</button>
+                  </td>
+                </tr>
+              `;
+            }).join("")}
           </tbody>
         </table>
       </div>
     </section>
   `;
 }
+
 
 function renderInventoryPage() {
   if (!roleIsStaff()) {
@@ -979,6 +1068,7 @@ function borrowItem(itemId) {
   );
 }
 
+
 async function completeBorrow(itemId) {
   if (!currentUser || roleIsStaff()) return;
 
@@ -1005,14 +1095,22 @@ async function completeBorrow(itemId) {
         throw new Error("APPARATUS_DISABLED");
       }
 
-      if (item.available < 1) {
+      const counts = getConditionCounts(item);
+
+      if (counts.good < 1) {
         throw new Error("OUT_OF_STOCK");
       }
 
+      const updatedCounts = {
+        ...counts,
+        good: counts.good - 1
+      };
+
       transaction.update(itemRef, {
-  available: item.available - 1,
-  lastTransactionId: recordRef.id
-});
+        available: updatedCounts.good,
+        conditionCounts: updatedCounts,
+        lastTransactionId: recordRef.id
+      });
 
       transaction.set(recordRef, {
         studentUid: currentUser.uid,
@@ -1037,7 +1135,7 @@ async function completeBorrow(itemId) {
     const messages = {
       APPARATUS_NOT_FOUND: "Apparatus not found.",
       APPARATUS_DISABLED: "This apparatus is currently disabled.",
-      OUT_OF_STOCK: "No units are currently available."
+      OUT_OF_STOCK: "No good-condition units are currently available."
     };
 
     showToast(
@@ -1046,6 +1144,7 @@ async function completeBorrow(itemId) {
     );
   }
 }
+
 
 function confirmReturn(recordId) {
   if (!currentUser || roleIsStaff()) {
@@ -1110,17 +1209,22 @@ async function completeReturn(recordId) {
 
       const item = itemSnapshot.data();
 
-      if (item.available >= item.total) {
-        throw new Error("INVENTORY_LIMIT");
-      }
-
       transaction.update(recordRef, {
         status: "Returned",
         returnedAt: serverTimestamp()
       });
 
-      transaction.update(itemRef, {
-  available: item.available + 1,
+     const counts = getConditionCounts(item);
+const returnedQuantity = Number(record.quantity || 1);
+
+const updatedCounts = {
+  ...counts,
+  needsInspection: counts.needsInspection + returnedQuantity
+};
+
+transaction.update(itemRef, {
+  available: updatedCounts.good,
+  conditionCounts: updatedCounts,
   lastTransactionId: recordRef.id
 });
     });
@@ -1138,7 +1242,6 @@ async function completeReturn(recordId) {
       NOT_OWNER: "You cannot return another student's record.",
       ALREADY_RETURNED: "This apparatus has already been returned.",
       APPARATUS_NOT_FOUND: "The apparatus is missing from inventory.",
-      INVENTORY_LIMIT: "Inventory count has reached its total."
     };
 
     showToast(
@@ -2000,6 +2103,7 @@ document.addEventListener("click", async event => {
   if (action === "borrow") borrowItem(id);
 
 
+
 if (action === "save-inventory-item") {
   if (!roleIsStaff()) {
     showToast("Only laboratory staff can change inventory.");
@@ -2016,6 +2120,7 @@ if (action === "save-inventory-item") {
   const totalInput = document.getElementById(
     `inventory-total-${id}`
   );
+
   const enabledInput = document.getElementById(
     `inventory-enabled-${id}`
   );
@@ -2029,18 +2134,46 @@ if (action === "save-inventory-item") {
     !Number.isSafeInteger(newTotal) ||
     newTotal < 0
   ) {
-    showToast("Enter a valid non-negative whole-number quantity.");
+    showToast("Enter a valid total quantity.");
     return;
   }
 
-  const borrowedCount = data.records.filter(record =>
-    record.itemId === item.id &&
-    record.status === "Borrowed"
-  ).reduce((total, record) => total + (record.quantity || 1), 0);
+  const newCounts = {};
+
+  for (const key of CONDITION_KEYS) {
+    const input = document.getElementById(
+      `condition-${key}-${id}`
+    );
+
+    if (!input || input.value.trim() === "") {
+      showToast("Complete all condition quantities.");
+      return;
+    }
+
+    const quantity = Number(input.value);
+
+    if (!Number.isSafeInteger(quantity) || quantity < 0) {
+      showToast("Condition quantities must be non-negative whole numbers.");
+      return;
+    }
+
+    newCounts[key] = quantity;
+  }
+
+  const borrowedCount = getBorrowedCount(item.id);
 
   if (newTotal < borrowedCount) {
     showToast(
-      `At least ${borrowedCount} total units are needed because that many are currently borrowed.`
+      `At least ${borrowedCount} units are needed because they are currently borrowed.`
+    );
+    return;
+  }
+
+  const conditionTotal = totalConditionCounts(newCounts);
+
+  if (conditionTotal !== newTotal - borrowedCount) {
+    showToast(
+      `Condition quantities must add up to ${newTotal - borrowedCount}, excluding ${borrowedCount} borrowed unit(s).`
     );
     return;
   }
@@ -2048,7 +2181,8 @@ if (action === "save-inventory-item") {
   try {
     await updateDoc(doc(db, "inventory", item.id), {
       total: newTotal,
-      available: newTotal - borrowedCount,
+      available: newCounts.good,
+      conditionCounts: newCounts,
       enabled: enabledInput.checked
     });
 
