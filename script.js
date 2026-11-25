@@ -1554,6 +1554,7 @@ function stopCamera() {
 
 function renderGuidePage() {
   const selected = findItem(selectedGuideId) || data.items[0];
+  const conditionCounts = getConditionCounts(selected);
 
   return `
     ${pageHeader(
@@ -1589,6 +1590,19 @@ function renderGuidePage() {
             <strong>Inventory:</strong> ${selected.available} available out of
             ${selected.total}. Storage: ${escapeHTML(selected.location)}.
           </span>
+        </div>
+
+        <div class="condition-overview">
+          <h3>Apparatus Condition</h3>
+          <p>Check the condition of this apparatus before borrowing.</p>
+          <div class="condition-list">
+            ${CONDITION_KEYS.map(key => `
+              <div class="condition-row">
+                <span>${escapeHTML(CONDITION_LABELS[key])}</span>
+                <strong>${conditionCounts[key]}</strong>
+              </div>
+            `).join("")}
+          </div>
         </div>
 
         <h3>Common Uses</h3>
