@@ -452,6 +452,37 @@ return `
  `;
 }
 
+
+const SUBJECT_CATEGORIES = [
+  "Biology",
+  "Chemistry",
+  "Physics",
+  "Earth and Space Science",
+  "General Laboratory"
+];
+
+function getItemSubject(item) {
+  if (item.subject) return item.subject;
+
+  const defaults = {
+    LT001: "Chemistry",
+    LT002: "Chemistry",
+    LT003: "Physics",
+    LT004: "Chemistry",
+    LT005: "Chemistry",
+    LT006: "Chemistry",
+    LT007: "Chemistry",
+    LT008: "Chemistry",
+    LT009: "Biology",
+    LT010: "Physics",
+    LT011: "Earth and Space Science",
+    LT012: "Biology"
+  };
+
+  return defaults[item.id] || "General Laboratory";
+}
+
+
 /* ---------- Login and welcome ---------- */
 
 function renderWelcome() {
@@ -953,9 +984,25 @@ return `
              return `
                <tr>
                  <td>${escapeHTML(item.id)}</td>
-                 <td>${escapeHTML(item.name)}</td>
-                 <td>${escapeHTML(item.location)}</td>
+                <td>${escapeHTML(item.name)}</td>
 
+<td>
+  <select
+    id="inventory-subject-${escapeHTML(item.id)}"
+    style="min-width:160px"
+  >
+    ${SUBJECT_CATEGORIES.map(subject => `
+      <option
+        value="${escapeHTML(subject)}"
+        ${getItemSubject(item) === subject ? "selected" : ""}
+      >
+        ${escapeHTML(subject)}
+      </option>
+    `).join("")}
+  </select>
+</td>
+
+<td>${escapeHTML(item.location)}</td>
                  <td>
                    <input
                      type="number"
