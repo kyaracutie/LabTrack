@@ -224,11 +224,15 @@ if (!currentUser) return;
 const recordsRef = collection(db, "records");
 
 const recordsQuery = roleIsStaff()
-? recordsRef
+? query(
+    recordsRef,
+    orderBy("requestedAt", "desc")
+  )
 : query(
-recordsRef,
-where("studentUid", "==", currentUser.uid)
-);
+    recordsRef,
+    where("studentUid", "==", currentUser.uid),
+    orderBy("requestedAt", "desc")
+  );
 
 unsubscribeRecords = onSnapshot(
 recordsQuery,
@@ -831,7 +835,7 @@ return `
      </div>
    </section>
 
-   ${recordsTable(data.records.slice().reverse().slice(0, 8), false, "Recent Transactions")}
+   ${recordsTable(data.records.slice(0, 8), false, "Recent Transactions")}
    ${renderInventoryTable(false)}
  `;
 }
@@ -1887,9 +1891,7 @@ function renderMyRecords() {
  const records = data.records
    .filter(record =>
      record.studentName.toLowerCase() === currentUser.name.toLowerCase()
-   )
-   .slice()
-   .reverse();
+   );
 
  return `
    ${pageHeader(
@@ -1909,7 +1911,7 @@ function renderMyRecords() {
 }
 
 function renderAllRecords() {
- const records = data.records.slice().reverse();
+ const records = data.records.;
 
  return `
    ${pageHeader(
@@ -2502,7 +2504,7 @@ if (event.target.id === "recordSearch") {
 recordSearchText = event.target.value;
 
 const term = recordSearchText.toLowerCase();
-const filtered = data.records.slice().reverse().filter(record =>
+const filtered = data.records.filter(record =>
 record.studentName.toLowerCase().includes(term) ||
 record.itemName.toLowerCase().includes(term) ||
 record.itemId.toLowerCase().includes(term) ||
