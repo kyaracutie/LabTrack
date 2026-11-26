@@ -962,7 +962,8 @@ return `
            <tr>
              <th>Apparatus ID</th>
              <th>Apparatus</th>
-             <th>Location</th>
+<th>Subject</th>
+<th>Location</th>
              <th>Total Units</th>
              <th>Good</th>
              <th>Needs Cleaning</th>
@@ -2396,6 +2397,10 @@ const enabledInput = document.getElementById(
 `inventory-enabled-${id}`
 );
 
+  const subjectInput = document.getElementById(
+  `inventory-subject-${id}`
+);
+
 if (!totalInput || !enabledInput) return;
 
 const newTotal = Number(totalInput.value);
@@ -2451,10 +2456,11 @@ return;
 
 try {
 await updateDoc(doc(db, "inventory", item.id), {
-total: newTotal,
-available: newCounts.good,
-conditionCounts: newCounts,
-enabled: enabledInput.checked
+  total: newTotal,
+  available: newCounts.good,
+  conditionCounts: newCounts,
+  enabled: enabledInput.checked,
+  subject: subjectInput.value
 });
 
 showToast(`${item.name} inventory updated successfully.`);
