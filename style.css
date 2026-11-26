@@ -1108,3 +1108,35 @@ td .btn {
 
   background-color: var(--primary) !important;
 }
+
+
+/* Scrollable borrowing records */
+.records-scroll {
+  max-height: 450px;
+  overflow-y: auto;
+  overflow-x: auto;
+  position: relative;
+}
+
+/* Keep table headings visible while scrolling */
+.records-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--panel, white);
+}
+
+/* Smooth scrollbar appearance */
+.records-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.records-scroll::-webkit-scrollbar-thumb {
+  background: #aaa;
+  border-radius: 10px;
+}
+
+.records-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
