@@ -1793,7 +1793,7 @@ function recordsTable(records, showStudentAction, title) {
       </div>
 
       ${records.length ? `
-        <div class="table-wrap">
+        <div class="table-wrap records-scroll">
           <table>
             <thead>
               <tr>
@@ -1910,8 +1910,19 @@ function renderMyRecords() {
  `;
 }
 
+
 function renderAllRecords() {
- const records = data.records.;
+ const records = data.records.slice().sort((a, b) => {
+   const dateA = a.requestedAt?.toMillis
+     ? a.requestedAt.toMillis()
+     : new Date(a.requestedAt || 0).getTime();
+
+   const dateB = b.requestedAt?.toMillis
+     ? b.requestedAt.toMillis()
+     : new Date(b.requestedAt || 0).getTime();
+
+   return dateB - dateA;
+ });
 
  return `
    ${pageHeader(
@@ -1942,6 +1953,7 @@ function renderAllRecords() {
    </section>
  `;
 }
+
 
 /* ---------- Theme customization ---------- */
 
