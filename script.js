@@ -2123,7 +2123,23 @@ return `
      </section>
 
      <section class="panel guide-detail">
-       <div class="apparatus-symbol">${escapeHTML(selected.symbol || "⚗")}</div>
+       ${selected.image ? `
+  <div class="apparatus-photo-wrap">
+    <img
+      src="${escapeHTML(selected.image)}"
+      alt="${escapeHTML(selected.name)}"
+      class="apparatus-photo"
+      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+    >
+    <div class="apparatus-symbol" style="display:none">
+      ${escapeHTML(selected.symbol || "⚗")}
+    </div>
+  </div>
+` : `
+  <div class="apparatus-symbol">
+    ${escapeHTML(selected.symbol || "⚗")}
+  </div>
+`}
        <span class="apparatus-id">${escapeHTML(selected.id)}</span>
        <h2>${escapeHTML(selected.name)}</h2>
        <p>${escapeHTML(selected.description)}</p>
