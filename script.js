@@ -332,6 +332,182 @@ modalRoot.innerHTML = "";
 modalRoot._confirmAction = null;
 }
 
+
+function showAddApparatusForm() {
+  modalRoot.innerHTML = `
+    <div class="modal-backdrop">
+      <section class="modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="addApparatusTitle"
+        style="width:min(100%, 600px)">
+
+        <h2 id="addApparatusTitle">Add New Apparatus</h2>
+        <p>Enter the details of the new laboratory apparatus.</p>
+
+        <form id="addApparatusForm">
+
+          <label>Apparatus ID</label>
+          <input type="text" id="newApparatusId"
+            placeholder="Example: LT013" required>
+
+          <label>Apparatus Name</label>
+          <input type="text" id="newApparatusName"
+            placeholder="Enter apparatus name" required>
+
+          <label>Category</label>
+          <input type="text" id="newApparatusCategory"
+            placeholder="Example: Glassware" required>
+
+          <label>Subject</label>
+          <select id="newApparatusSubject" required>
+            ${SUBJECT_CATEGORIES.map(subject => `
+              <option value="${escapeHTML(subject)}">
+                ${escapeHTML(subject)}
+              </option>
+            `).join("")}
+          </select>
+
+          <label>Storage Location</label>
+          <input type="text" id="newApparatusLocation"
+            placeholder="Example: Cabinet A5" required>
+
+          <label>Total Units</label>
+          <input type="number" id="newApparatusTotal"
+            min="0" step="1" value="1" required>
+
+          <label>Symbol / Emoji</label>
+          <input type="text" id="newApparatusSymbol"
+            placeholder="Example: 🧪">
+
+          <label>Description</label>
+          <textarea id="newApparatusDescription"
+            placeholder="Describe the apparatus..."
+            rows="3" required></textarea>
+
+          <label>Uses (one per line)</label>
+          <textarea id="newApparatusUses"
+            placeholder="Holding samples&#10;Mixing solutions"
+            rows="3"></textarea>
+
+          <label>Safety Instructions (one per line)</label>
+          <textarea id="newApparatusSafety"
+            placeholder="Inspect before use&#10;Handle carefully"
+            rows="3"></textarea>
+
+          <div class="modal-actions">
+            <button type="button"
+              class="btn btn-outline"
+              data-action="close-modal">
+              Cancel
+            </button>
+
+            <button type="submit"
+              class="btn btn-primary">
+              Save Apparatus
+            </button>
+          </div>
+
+        </form>
+      </section>
+    </div>
+  `;
+
+  modalRoot._confirmAction = null;
+}
+
+
+async function saveNewApparatus(event) {
+  event.preventDefault();
+
+  if (!roleIsStaff()) {
+    showToast("Only laboratory staff can add apparatus.");
+    return;
+  }
+
+  const id = document.getElementById("newApparatusId").value.trim().toUpperCase();
+  const name = document.getElementById("newApparatusName").value.trim();
+  const category = document.getElementById("newApparatusCategory").value.trim();
+  const subject = document.getElementById("newApparatusSubject").value;
+  const location = document.getElementById("newApparatusLocation").value.trim();
+  const totalInput = document.getElementById("newApparatusTotal");
+  const total = Number(totalInput.value);
+  const symbol = document.getElementById("newApparatusSymbol").value.trim() || "🧪";
+  const description = document.getElementById("newApparatusDescription").value.trim();
+
+  const uses = document.getElementById("newApparatusUses").value
+    .split("\n")
+    .map(value => value.trim())
+    .filter(Boolean);
+
+  const safety = document.getElementById("newApparatusSafety").value
+    .split("\n")
+    .map(value => value.trim())
+    .filter(Boolean);
+
+  if (!id || !name || !category || !location || !description) {
+    showToast("Please complete all required fields.");
+    return;
+  }
+
+  if (!/^[A-Z0-9_-]+$/.test(id)) {
+    showToast("Use only letters, numbers, hyphens, or underscores for the ID.");
+    return;
+  }
+
+  if (
+    totalInput.value.trim() === "" ||
+    !Number.isSafeInteger(total) ||
+    total < 0
+  ) {
+    showToast("Enter a valid total quantity.");
+    return;
+  }
+
+  try {
+    const itemRef = doc(db, "inventory", id);
+    const existingItem = await getDoc(itemRef);
+
+    if (existingItem.exists()) {
+      showToast("This apparatus ID already exists.");
+      return;
+    }
+
+    const conditionCounts = {
+      good: total,
+      needsCleaning: 0,
+      needsRepair: 0,
+      damaged: 0,
+      underMaintenance: 0,
+      needsInspection: 0
+    };
+
+    await setDoc(itemRef, {
+      name,
+      category,
+      subject,
+      location,
+      total,
+      available: total,
+      enabled: true,
+      conditionCounts,
+      symbol,
+      description,
+      uses,
+      safety,
+      createdAt: serverTimestamp()
+    });
+
+    closeModal();
+    showToast(`${name} added successfully!`);
+
+  } catch (error) {
+    console.error("Add apparatus error:", error);
+    showToast("Could not add apparatus. Check Firebase permissions.");
+  }
+}
+
+
 function findItem(id) {
 const normalized = String(id || "").trim().toUpperCase();
 return data.items.find(item => item.id.toUpperCase() === normalized);
@@ -1181,28 +1357,38 @@ function renderInventoryTable(showTitle = true) {
 
 
 
+
 function renderInventoryPage() {
-if (!roleIsStaff()) {
-return renderStudentDashboard();
-}
+  if (!roleIsStaff()) {
+    return renderStudentDashboard();
+  }
 
-return `
-   ${pageHeader(
-     "Inventory",
-     "Manage apparatus quantities and choose which items students can borrow."
-   )}
+  return `
+    ${pageHeader(
+      "Inventory",
+      "Manage apparatus quantities and choose which items students can borrow."
+    )}
 
-   <div class="notice">
-     <span class="notice-icon">✓</span>
-     <span>
-       Set the total physical stock and enable or disable borrowing for
-       each apparatus. Available quantities update automatically when
-       borrowing records are taken into account.
-     </span>
-   </div>
+    <div class="notice">
+      <span class="notice-icon">✓</span>
+      <span>
+        Set the total physical stock and enable or disable borrowing for
+        each apparatus. Available quantities update automatically when
+        borrowing records are taken into account.
+      </span>
+    </div>
 
-   ${renderInventoryTable()}
- `;
+    <div style="display:flex; justify-content:flex-end; margin:16px 0;">
+      <button
+        class="btn btn-primary"
+        data-action="show-add-apparatus"
+      >
+        + Add Apparatus
+      </button>
+    </div>
+
+    ${renderInventoryTable()}
+  `;
 }
 
 /* ---------- Borrowing and returning ---------- */
@@ -2437,6 +2623,16 @@ const action = button.dataset.action;
   
 const recordId = button.dataset.record;
 
+if (action === "show-add-apparatus") {
+  if (!roleIsStaff()) {
+    showToast("Only laboratory staff can add apparatus.");
+    return;
+  }
+
+  showAddApparatusForm();
+  return;
+}
+
 if (action === "approve-request") {
   await approveBorrowRequest(recordId);
   return;
@@ -2683,6 +2879,12 @@ if (action === "clear-record-search") {
 recordSearchText = "";
 renderApp();
 }
+});
+
+document.addEventListener("submit", async event => {
+  if (event.target.id === "addApparatusForm") {
+    await saveNewApparatus(event);
+  }
 });
 
 document.addEventListener("input", event => {
