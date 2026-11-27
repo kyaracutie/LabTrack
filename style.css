@@ -1326,7 +1326,63 @@ td .btn {
 }
 
 
+
 /* FIX APPARATUS GUIDE OVERLAPPING ON MOBILE */
+@media (max-width: 760px) {
+
+  .guide-layout {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100%;
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .guide-layout > .panel:first-child {
+    position: static !important;
+    width: 100%;
+    min-width: 0;
+    max-height: none;
+    overflow: visible;
+    align-self: stretch;
+  }
+
+  .guide-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    max-height: 280px;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .guide-detail {
+    position: static !important;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: visible;
+    z-index: auto;
+  }
+
+  .guide-detail img,
+  .apparatus-photo-wrap {
+    max-width: 100%;
+  }
+
+  .apparatus-photo-wrap {
+    width: 100%;
+    height: 220px;
+  }
+
+}
+
+@media (max-width: 420px) {
+  .guide-list {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 760px) {
   .guide-layout > .panel:first-child {
     position: static !important;
