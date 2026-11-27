@@ -2123,6 +2123,23 @@ window.labTrackQrFallback = null;
 /* ---------- Apparatus guide ---------- */
 
 function renderGuidePage() {
+if (!data.items || data.items.length === 0) {
+  return `
+    ${pageHeader(
+      "Apparatus Guide",
+      "Learn the purpose, common uses, and basic safety precautions for laboratory equipment."
+    )}
+
+    <section class="panel empty-state">
+      <div class="apparatus-symbol">🧪</div>
+      <h2>No Apparatus Available</h2>
+      <p>
+        There are currently no apparatus registered in the inventory.
+        Please ask laboratory staff to add apparatus.
+      </p>
+    </section>
+  `;
+}
 const selected = findItem(selectedGuideId) || data.items[0];
 console.log("Selected apparatus:", selected);
 console.log("Image path:", selected.image);
