@@ -148,6 +148,7 @@ let currentUser = null;
 let currentPage = "dashboard";
 let selectedGuideId = "LT001";
 let searchText = "";
+let selectedApparatusSubject = "";
 let recordSearchText = "";
 let cameraStream = null;
 let cameraActive = false;
@@ -879,40 +880,109 @@ return `
 
 /* ---------- Apparatus cards and inventory ---------- */
 
+
 function renderApparatusPanel() {
-const term = searchText.toLowerCase();
+  const term = searchText.toLowerCase();
 
-const items = data.items.filter(item =>
-item.name.toLowerCase().includes(term) ||
-item.id.toLowerCase().includes(term) ||
-item.category.toLowerCase().includes(term)
-);
+  const subjects = [
+    {
+      name: "Chemistry",
+      image: "images/chemistry.jpg"
+    },
+    {
+      name: "Physics",
+      image: "images/physics.jpg"
+    },
+    {
+      name: "Biology",
+      image: "images/biology.jpg"
+    },
+    {
+      name: "Earth and Space Science",
+      image: "images/earth-space.jpg"
+    },
+    {
+      name: "General Laboratory",
+      image: "images/general-lab.jpg"
+    }
+  ];
 
-return `
-   <section class="panel">
-     <div class="panel-header">
-       <div>
-         <h3>Laboratory Apparatus</h3>
-         <p>Search the guide or borrow an available item.</p>
-       </div>
-       <button class="btn btn-secondary" data-action="navigate" data-page="guide">
-         Open Guide
-       </button>
-     </div>
+  if (!selectedApparatusSubject) {
+    return `
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h3>Laboratory Apparatus</h3>
+            <p>Select a subject to explore its laboratory apparatus.</p>
+          </div>
+          <button class="btn btn-secondary"
+            data-action="navigate" data-page="guide">
+            Open Guide
+          </button>
+        </div>
 
-     <div class="search-bar">
-       <input id="apparatusSearch" type="search"
-         placeholder="Search by name, category, or ID..."
-         value="${escapeHTML(searchText)}">
-       <button class="btn btn-outline" data-action="clear-search">Clear</button>
-     </div>
+        <div class="subject-card-grid">
+          ${subjects.map(subject => `
+            <button
+              class="subject-card"
+              data-action="select-subject"
+              data-subject="${escapeHTML(subject.name)}"
+              style="background-image:
+                linear-gradient(transparent, rgba(0,0,0,0.65)),
+                url('${subject.image}')"
+            >
+              <span>${escapeHTML(subject.name)}</span>
+            </button>
+          `).join("")}
+        </div>
+      </section>
+    `;
+  }
 
-     <div id="apparatusGrid" class="apparatus-grid">
-       ${renderApparatusCards(items)}
-     </div>
-   </section>
- `;
+  const items = data.items.filter(item => {
+    const matchesSubject =
+      getItemSubject(item) === selectedApparatusSubject;
+
+    const matchesSearch =
+      (item.name || "").toLowerCase().includes(term) ||
+      (item.id || "").toLowerCase().includes(term) ||
+      (item.category || "").toLowerCase().includes(term);
+
+    return matchesSubject && matchesSearch;
+  });
+
+  return `
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h3>${escapeHTML(selectedApparatusSubject)}</h3>
+          <p>Browse and borrow available laboratory apparatus.</p>
+        </div>
+
+        <button class="btn btn-secondary"
+          data-action="back-to-subjects">
+          Back to Subjects
+        </button>
+      </div>
+
+      <div class="search-bar">
+        <input id="apparatusSearch" type="search"
+          placeholder="Search by name, category, or ID..."
+          value="${escapeHTML(searchText)}">
+
+        <button class="btn btn-outline"
+          data-action="clear-search">
+          Clear
+        </button>
+      </div>
+
+      <div id="apparatusGrid" class="apparatus-grid">
+        ${renderApparatusCards(items)}
+      </div>
+    </section>
+  `;
 }
+
 
 function renderApparatusCards(items) {
 if (!items.length) {
@@ -2538,6 +2608,22 @@ renderApp();
 );
 }
 
+
+if (action === "select-subject") {
+  selectedApparatusSubject = button.dataset.subject;
+  searchText = "";
+  renderApp();
+  return;
+}
+
+if (action === "back-to-subjects") {
+  selectedApparatusSubject = "";
+  searchText = "";
+  renderApp();
+  return;
+}
+
+  
 if (action === "clear-search") {
 searchText = "";
 renderApp();
