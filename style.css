@@ -1183,7 +1183,10 @@ td .btn {
 }
 
 .category-group-row td {
-  background: #e5e5e5;
+  background-color: #e5e5e5;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
   color: #333;
   padding: 12px 14px;
   font-weight: 700;
