@@ -8,23 +8,23 @@ updateProfile,
 onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
 
+
 import {
-collection,
-doc,
-getDoc,
-getDocs,
-onSnapshot,
-query,
-where,
-orderBy,
-runTransaction,
-serverTimestamp,
-setDoc,
-updateDoc,
-addDoc
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  onSnapshot,
+  query,
+  where,
+  orderBy,
+  runTransaction,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  addDoc,
+  deleteDoc
 } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
-
-
 
 /* LABTRACK
   Original-style interface + student/staff roles + borrowing and returns.
@@ -656,6 +656,48 @@ function findActiveRecord(itemId, studentUid) {
     ["Pending", "Borrowed"].includes(record.status) &&
     record.studentUid === studentUid
   );
+}
+
+
+async function deleteApparatus(itemId) {
+  if (!roleIsStaff()) {
+    showToast("Only laboratory staff can delete apparatus.");
+    return;
+  }
+
+  const item = findItem(itemId);
+
+  if (!item) {
+    showToast("Apparatus not found.");
+    return;
+  }
+
+  const hasActiveRecords = data.records.some(record =>
+    record.itemId === itemId &&
+    ["Pending", "Borrowed"].includes(record.status)
+  );
+
+  if (hasActiveRecords) {
+    showToast(
+      "Cannot delete this apparatus while it has pending or borrowed transactions."
+    );
+    return;
+  }
+
+  const confirmed = confirm(
+    `Are you sure you want to delete ${item.name} (${item.id})?`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    await deleteDoc(doc(db, "inventory", itemId));
+
+    showToast(`${item.name} deleted successfully.`);
+  } catch (error) {
+    console.error("Delete apparatus error:", error);
+    showToast("Could not delete apparatus.");
+  }
 }
 
 
@@ -1415,13 +1457,24 @@ function renderInventoryTable(showTitle = true) {
 
                     <td>${stockBadge(item)}</td>
 
-                    <td>
-                      <button
-                        class="btn btn-primary btn-small"
-                        data-action="save-inventory-item"
-                        data-id="${escapeHTML(item.id)}"
-                      >Save</button>
-                    </td>
+               
+<td>
+  <div style="display:flex; gap:6px; flex-wrap:wrap;">
+    <button
+      class="btn btn-primary btn-small"
+      data-action="save-inventory-item"
+      data-id="${escapeHTML(item.id)}"
+    >Save</button>
+
+    <button
+      class="btn btn-small"
+      style="background:#bd4949; color:white;"
+      data-action="delete-apparatus"
+      data-id="${escapeHTML(item.id)}"
+    >Delete</button>
+  </div>
+</td>
+
                   </tr>
                 `;
               }).join("")}
@@ -2773,6 +2826,13 @@ if (action === "reject-request") {
   await rejectBorrowRequest(recordId);
   return;
 }
+
+
+if (action === "delete-apparatus") {
+  await deleteApparatus(id);
+  return;
+}
+
 
 if (action === "toggle-password") {
 const targetId = button.dataset.target;
