@@ -211,29 +211,40 @@ records: []
 let unsubscribeInventory = null;
 let unsubscribeRecords = null;
 
+
 function startInventorySync() {
-// Stop the previous listener before starting another one.
-if (unsubscribeInventory) {
-unsubscribeInventory();
-unsubscribeInventory = null;
+  // Stop the previous listener before starting another one.
+  if (unsubscribeInventory) {
+    unsubscribeInventory();
+    unsubscribeInventory = null;
+  }
+
+  unsubscribeInventory = onSnapshot(
+    collection(db, "inventory"),
+    snapshot => {
+      data.items = snapshot.docs.map(itemDoc => {
+        const item = {
+          id: itemDoc.id,
+          ...itemDoc.data()
+        };
+
+        // Test Tube image
+        if (item.id === "LT001") {
+          item.image = "images/testtube.jpg";
+        }
+
+        return item;
+      });
+
+      renderApp();
+    },
+    error => {
+      console.error("Inventory sync error:", error);
+      showToast("Could not synchronize inventory.");
+    }
+  );
 }
 
-unsubscribeInventory = onSnapshot(
-collection(db, "inventory"),
-snapshot => {
-data.items = snapshot.docs.map(itemDoc => ({
-id: itemDoc.id,
-...itemDoc.data()
-}));
-
-renderApp();
-},
-error => {
-console.error("Inventory sync error:", error);
-showToast("Could not synchronize inventory.");
-}
-);
-}
 
 function startRecordsSync() {
 if (unsubscribeRecords) {
