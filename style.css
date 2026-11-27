@@ -1198,3 +1198,16 @@ td .btn {
   font-weight: 700;
   text-align: left;
 }
+
+#app .category-group-row td {
+  background-color: #e8e1f5 !important;
+  color: #6845a5 !important;
+  font-weight: 700;
+  padding: 12px 14px;
+  border-bottom: 1px solid #d8c9ed;
+}
+
+#app .category-group-row strong {
+  display: block;
+  font-size: 14px;
+}
