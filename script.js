@@ -954,130 +954,150 @@ return items.map(item => `
 }
 
 
+
 function renderInventoryTable(showTitle = true) {
-return `
-   <section class="panel">
-     ${showTitle ? `
-       <div class="panel-header">
-         <div>
-           <h3>Inventory Overview</h3>
-           <p>Update apparatus quantities and laboratory availability.</p>
-         </div>
-       </div>
-     ` : ""}
+  return `
+    <section class="panel">
+      ${showTitle ? `
+        <div class="panel-header">
+          <div>
+            <h3>Inventory Overview</h3>
+            <p>Update apparatus quantities and laboratory availability.</p>
+          </div>
+        </div>
+      ` : ""}
 
-     <div class="table-wrap">
-       <table>
-         <thead>
-           <tr>
-             <th>Apparatus ID</th>
-             <th>Apparatus</th>
-             <th>Subject</th>
-             <th>Location</th>
-             <th>Total Units</th>
-             <th>Good</th>
-             <th>Needs Cleaning</th>
-             <th>Needs Repair</th>
-             <th>Damaged</th>
-             <th>Under Maintenance</th>
-             <th>Needs Inspection</th>
-             <th>Available</th>
-             <th>Enable Borrowing</th>
-             <th>Status</th>
-             <th>Action</th>
-           </tr>
-         </thead>
-
-         <tbody>
-           ${data.items
-  .slice()
-  .sort((a, b) =>
-    (a.category || "Uncategorized").localeCompare(
-      b.category || "Uncategorized"
- ${data.items
-  .slice()
-  .sort((a, b) =>
-    (a.category || "Uncategorized").localeCompare(
-      b.category || "Uncategorized"
-    )
-  )
-  .map((item, index, items) => {
-    return `
-      ${index === 0 ||
-        (items[index - 1].category || "Uncategorized") !==
-        (item.category || "Uncategorized")
-          ? `
-            <tr class="category-group-row">
-              <td colspan="100">
-                <strong>${escapeHTML(item.category || "Uncategorized")}</strong>
-              </td>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Apparatus ID</th>
+              <th>Apparatus</th>
+              <th>Subject</th>
+              <th>Location</th>
+              <th>Total Units</th>
+              <th>Good</th>
+              <th>Needs Cleaning</th>
+              <th>Needs Repair</th>
+              <th>Damaged</th>
+              <th>Under Maintenance</th>
+              <th>Needs Inspection</th>
+              <th>Available</th>
+              <th>Enable Borrowing</th>
+              <th>Status</th>
+              <th>Action</th>
             </tr>
-          `
-          : ""}
+          </thead>
 
-      <tr>
-        <!-- KEEP YOUR EXISTING APPARATUS TABLE CELLS HERE -->
-      </tr>
-    `;
-  }).join("")}
-  </select>
-</td>
+          <tbody>
+            ${data.items
+              .slice()
+              .sort((a, b) =>
+                (a.category || "Uncategorized").localeCompare(
+                  b.category || "Uncategorized"
+                ) ||
+                (a.name || "").localeCompare(b.name || "")
+              )
+              .map((item, index, items) => {
+                const counts = getConditionCounts(item);
+                const category = item.category || "Uncategorized";
 
-<td>${escapeHTML(item.location)}</td>
-                 <td>
-                   <input
-                     type="number"
-                     id="inventory-total-${escapeHTML(item.id)}"
-                     min="0"
-                     step="1"
-                     value="${item.total}"
-                     style="width:75px"
-                   >
-                 </td>
+                const isNewCategory =
+                  index === 0 ||
+                  (items[index - 1].category || "Uncategorized") !== category;
 
-                 ${CONDITION_KEYS.map(key => `
-                   <td>
-                     <input
-                       type="number"
-                       id="condition-${key}-${escapeHTML(item.id)}"
-                       min="0"
-                       step="1"
-                       value="${counts[key]}"
-                       aria-label="${CONDITION_LABELS[key]} for ${escapeHTML(item.name)}"
-                       style="width:75px"
-                     >
-                   </td>
-                 `).join("")}
+                return `
+                  ${isNewCategory ? `
+                    <tr class="category-group-row">
+                      <td colspan="15">
+                        <strong>${escapeHTML(category)}</strong>
+                      </td>
+                    </tr>
+                  ` : ""}
 
-                 <td><strong>${item.available}</strong></td>
+                  <tr>
+                    <td>${escapeHTML(item.id)}</td>
 
-                 <td>
-                   <input
-                     type="checkbox"
-                     id="inventory-enabled-${escapeHTML(item.id)}"
-                     ${item.enabled !== false ? "checked" : ""}
-                     style="width:auto"
-                   >
-                 </td>
+                    <td>
+                      <strong>${escapeHTML(item.name)}</strong>
+                    </td>
 
-                 <td>${stockBadge(item)}</td>
+                    <td>
+                      <select
+                        id="inventory-subject-${escapeHTML(item.id)}"
+                      >
+                        ${SUBJECT_CATEGORIES.map(subject => `
+                          <option
+                            value="${escapeHTML(subject)}"
+                            ${(item.subject || getItemSubject(item)) === subject
+                              ? "selected"
+                              : ""}
+                          >
+                            ${escapeHTML(subject)}
+                          </option>
+                        `).join("")}
+                      </select>
+                    </td>
 
-                 <td>
-                   <button
-                     class="btn btn-primary btn-small"
-                     data-action="save-inventory-item"
-                     data-id="${escapeHTML(item.id)}"
-                   >Save</button>
-                 </td>
-               </tr>
-             `;
-           }).join("")}
-         </tbody>
-       </table>
-     </div>
-   </section>
- `;
+                    <td>${escapeHTML(item.location || "—")}</td>
+
+                    <td>
+                      <input
+                        type="number"
+                        id="inventory-total-${escapeHTML(item.id)}"
+                        min="0"
+                        step="1"
+                        value="${item.total}"
+                        style="width:75px"
+                      >
+                    </td>
+
+                    ${CONDITION_KEYS.map(key => `
+                      <td>
+                        <input
+                          type="number"
+                          id="condition-${key}-${escapeHTML(item.id)}"
+                          min="0"
+                          step="1"
+                          value="${counts[key]}"
+                          aria-label="${CONDITION_LABELS[key]} for ${escapeHTML(item.name)}"
+                          style="width:75px"
+                        >
+                      </td>
+                    `).join("")}
+
+                    <td>
+                      <strong>${item.available}</strong>
+                    </td>
+
+                    <td>
+                      <input
+                        type="checkbox"
+                        id="inventory-enabled-${escapeHTML(item.id)}"
+                        ${item.enabled !== false ? "checked" : ""}
+                        style="width:auto"
+                      >
+                    </td>
+
+                    <td>${stockBadge(item)}</td>
+
+                    <td>
+                      <button
+                        class="btn btn-primary btn-small"
+                        data-action="save-inventory-item"
+                        data-id="${escapeHTML(item.id)}"
+                      >Save</button>
+                    </td>
+                  </tr>
+                `;
+              }).join("")}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
 }
+
 
 
 function renderInventoryPage() {
