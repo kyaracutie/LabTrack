@@ -2154,7 +2154,7 @@ return `
        ${selected.image ? `
   <div class="apparatus-photo-wrap">
     <img
-      src="/LabTrack/images/testtube.jpg"
+      src="/images/testtube.jpg"
       alt="${escapeHTML(selected.name)}"
       class="apparatus-photo"
       onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
