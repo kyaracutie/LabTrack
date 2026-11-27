@@ -1140,3 +1140,11 @@ td .btn {
 .records-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
+
+.category-group-row td {
+  background: var(--background);
+  color: var(--primary);
+  font-weight: 700;
+  padding: 12px 14px;
+  border-top: 2px solid var(--border);
+}
