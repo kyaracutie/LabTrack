@@ -42,14 +42,29 @@ const SUBJECT_OPTIONS = [
 ];
 
 const INITIAL_ITEMS = [
+
 {
-id: "LT001", name: "Test Tube", category: "Glassware",
-total: 43, available: 42, location: "Cabinet A1",
-symbol: "🧪",
-description: "A small cylindrical tube used to hold, mix, or heat small quantities of substances.",
-uses: ["Holding small samples.", "Mixing small quantities of liquids.", "Heating suitable samples when used with proper equipment."],
-safety: ["Use a test-tube holder when heating.", "Never point a heated test tube toward another person.", "Check for cracks before use."]
+  id: "LT001",
+  name: "Test Tube",
+  category: "Glassware",
+  total: 43,
+  available: 42,
+  location: "Cabinet A1",
+  symbol: "🧪",
+  image: "images/testtube.jpg",
+  description: "A small cylindrical tube used to hold, mix, or heat small quantities of substances.",
+  uses: [
+    "Holding small samples.",
+    "Mixing small quantities of liquids.",
+    "Heating suitable samples when used with proper equipment."
+  ],
+  safety: [
+    "Use a test-tube holder when heating.",
+    "Never point a heated test tube toward another person.",
+    "Check for cracks before use."
+  ]
 },
+
 {
 id: "LT002", name: "Beaker (250 mL)", category: "Glassware",
 total: 20, available: 20, location: "Cabinet A2",
