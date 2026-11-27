@@ -1258,3 +1258,59 @@ td .btn {
 .guide-detail {
   min-width: 0;
 }
+
+
+/* =================================
+   LABTRACK LOGO SIZE ADJUSTMENTS
+================================= */
+
+/* Welcome and login screen logo */
+.welcome-screen .logo {
+  width: auto;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 14px;
+  overflow: visible;
+  margin-bottom: 34px;
+}
+
+.welcome-screen .logo-img {
+  width: 65px;
+  height: 65px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.welcome-screen .logo span {
+  font-size: 1.3rem;
+}
+
+/* Dashboard header logo */
+.topbar .brand-mark {
+  width: 55px;
+  height: 55px;
+  flex: 0 0 55px;
+  overflow: hidden;
+}
+
+.topbar .brand-logo-img {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+}
+
+/* Keep dashboard logo proportional on phones */
+@media (max-width: 760px) {
+  .topbar .brand-mark {
+    width: 48px;
+    height: 48px;
+    flex-basis: 48px;
+  }
+
+  .topbar .brand-logo-img {
+    width: 40px;
+    height: 40px;
+  }
+}
