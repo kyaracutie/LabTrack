@@ -1324,3 +1324,23 @@ td .btn {
   min-width: 86px;
   flex-shrink: 0;
 }
+
+
+/* FIX APPARATUS GUIDE OVERLAPPING ON MOBILE */
+@media (max-width: 760px) {
+  .guide-layout > .panel:first-child {
+    position: static !important;
+    top: auto !important;
+    align-self: auto;
+  }
+
+  .guide-list {
+    max-height: 280px;
+    overflow-y: auto;
+  }
+
+  .guide-detail {
+    position: relative;
+    z-index: 1;
+  }
+}
