@@ -34,6 +34,12 @@ addDoc
 const STORAGE_KEY = "labtrack_original_v3";
 const THEME_KEY = "labtrack_theme_v3";
 
+const SUBJECT_OPTIONS = [
+  "Chemistry",
+  "Physics",
+  "Biology",
+  "Earth and Space Science"
+];
 
 const INITIAL_ITEMS = [
 {
@@ -918,7 +924,11 @@ return items.map(item => `
      <div class="apparatus-symbol">${escapeHTML(item.symbol || "⚗")}</div>
      <span class="apparatus-id">${escapeHTML(item.id)}</span>
      <h3>${escapeHTML(item.name)}</h3>
-     <p>${escapeHTML(item.category)}<br>Location: ${escapeHTML(item.location)}</p>
+     <p>
+  ${escapeHTML(item.category)}<br>
+  Subject: ${escapeHTML(getItemSubject(item))}<br>
+  Location: ${escapeHTML(item.location)}
+</p>
      ${stockBadge(item)}
      <div class="stock-count">
        ${item.available}
@@ -962,8 +972,8 @@ return `
            <tr>
              <th>Apparatus ID</th>
              <th>Apparatus</th>
-<th>Subject</th>
-<th>Location</th>
+             <th>Subject</th>
+             <th>Location</th>
              <th>Total Units</th>
              <th>Good</th>
              <th>Needs Cleaning</th>
@@ -2401,7 +2411,7 @@ const enabledInput = document.getElementById(
   `inventory-subject-${id}`
 );
 
-if (!totalInput || !enabledInput) return;
+if (!totalInput || !enabledInput || !subjectInput) return;
 
 const newTotal = Number(totalInput.value);
 
