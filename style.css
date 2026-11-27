@@ -1314,3 +1314,13 @@ td .btn {
     height: 40px;
   }
 }
+
+
+/* FIX SHOW PASSWORD BUTTON ALIGNMENT */
+.login-card button[data-action="toggle-password"] {
+  margin-top: 0 !important;
+  align-self: center;
+  height: 53px;
+  min-width: 86px;
+  flex-shrink: 0;
+}
