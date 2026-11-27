@@ -2113,6 +2113,8 @@ window.labTrackQrFallback = null;
 
 function renderGuidePage() {
 const selected = findItem(selectedGuideId) || data.items[0];
+console.log("Selected apparatus:", selected);
+console.log("Image path:", selected.image);
 const conditionCounts = getConditionCounts(selected);
 
 return `
