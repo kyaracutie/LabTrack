@@ -1191,11 +1191,16 @@ td .btn {
 }
 
 #app .category-group-row td {
-  background-color: #e8e1f5 !important;
-  color: #6845a5 !important;
+  color: white !important;
   font-weight: 700;
-  padding: 12px 14px;
+  padding: 18px 14px;
   border-bottom: 1px solid #d8c9ed;
+
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.7);
 }
 
 #app .category-group-row strong {
