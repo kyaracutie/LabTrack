@@ -989,27 +989,37 @@ return `
          </thead>
 
          <tbody>
-           ${data.items.map(item => {
-             const counts = getConditionCounts(item);
+           ${data.items
+  .slice()
+  .sort((a, b) =>
+    (a.category || "Uncategorized").localeCompare(
+      b.category || "Uncategorized"
+ ${data.items
+  .slice()
+  .sort((a, b) =>
+    (a.category || "Uncategorized").localeCompare(
+      b.category || "Uncategorized"
+    )
+  )
+  .map((item, index, items) => {
+    return `
+      ${index === 0 ||
+        (items[index - 1].category || "Uncategorized") !==
+        (item.category || "Uncategorized")
+          ? `
+            <tr class="category-group-row">
+              <td colspan="100">
+                <strong>${escapeHTML(item.category || "Uncategorized")}</strong>
+              </td>
+            </tr>
+          `
+          : ""}
 
-             return `
-               <tr>
-                 <td>${escapeHTML(item.id)}</td>
-                <td>${escapeHTML(item.name)}</td>
-
-<td>
-  <select
-    id="inventory-subject-${escapeHTML(item.id)}"
-    style="min-width:160px"
-  >
-    ${SUBJECT_CATEGORIES.map(subject => `
-      <option
-        value="${escapeHTML(subject)}"
-        ${getItemSubject(item) === subject ? "selected" : ""}
-      >
-        ${escapeHTML(subject)}
-      </option>
-    `).join("")}
+      <tr>
+        <!-- KEEP YOUR EXISTING APPARATUS TABLE CELLS HERE -->
+      </tr>
+    `;
+  }).join("")}
   </select>
 </td>
 
