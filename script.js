@@ -161,6 +161,7 @@ const modalRoot = document.getElementById("modal-root");
 
 let currentUser = null;
 let currentPage = "dashboard";
+let selectedSubjectFromQR = "";
 let selectedGuideId = "LT001";
 let searchText = "";
 let selectedApparatusSubject = "";
@@ -1091,6 +1092,21 @@ function navigate(page) {
 currentPage = page;
 searchText = "";
 renderApp();
+}
+
+function getSubjectFromQR() {
+  const params = new URLSearchParams(window.location.search);
+  const subject = params.get("subject");
+
+  const subjectMap = {
+    "chemistry": "Chemistry",
+    "biology": "Biology",
+    "physics": "Physics",
+    "earth-space": "Earth and Space Science",
+    "general-lab": "General Laboratory"
+  };
+
+  return subjectMap[subject] || "";
 }
 
 /* ---------- Student dashboard ---------- */
@@ -2200,7 +2216,30 @@ if (!data.items || data.items.length === 0) {
     </section>
   `;
 }
-const selected = findItem(selectedGuideId) || data.items[0];
+const guideItems = selectedSubjectFromQR
+  ? data.items.filter(item =>
+      (item.category || "").toLowerCase() ===
+      selectedSubjectFromQR.toLowerCase()
+    )
+  : data.items;
+
+if (guideItems.length === 0) {
+  return `
+    ${pageHeader(
+      selectedSubjectFromQR || "Apparatus Guide",
+      "No apparatus is currently registered under this category."
+    )}
+    <section class="panel empty-state">
+      <div class="apparatus-symbol">🧪</div>
+      <h2>No Apparatus Available</h2>
+      <p>Please ask laboratory staff to add apparatus to this category.</p>
+    </section>
+  `;
+}
+
+const selected = guideItems.find(item =>
+  item.id === selectedGuideId
+) || guideItems[0];
 console.log("Selected apparatus:", selected);
 console.log("Image path:", selected.image);
 const conditionCounts = getConditionCounts(selected);
@@ -2217,7 +2256,7 @@ return `
          <h3>Apparatus List</h3>
        </div>
        <div class="guide-list">
-         ${data.items.map(item => `
+         ${guideItems.map(item => `
            <button class="guide-item ${item.id === selected.id ? "active" : ""}"
                    data-action="open-guide" data-id="${escapeHTML(item.id)}">
              <strong>${escapeHTML(item.name)}</strong>
@@ -2231,7 +2270,7 @@ return `
        ${selected.image ? `
   <div class="apparatus-photo-wrap">
     <img
-      src="/images/testtube.jpg"
+      src="${escapeHTML(selected.image)}"
       alt="${escapeHTML(selected.name)}"
       class="apparatus-photo"
       onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
@@ -2703,16 +2742,25 @@ name ||
 email.split("@")[0];
 
 currentUser = {
-uid: firebaseUser.uid,
-name: displayName,
-email: firebaseUser.email,
-role: role
+  uid: firebaseUser.uid,
+  name: displayName,
+  email: firebaseUser.email,
+  role: role
 };
 
-currentPage = "dashboard";
+selectedSubjectFromQR = getSubjectFromQR();
+
+currentPage = selectedSubjectFromQR
+  ? "guide"
+  : "dashboard";
+
 searchText = "";
 
 renderApp();
+
+if (selectedSubjectFromQR) {
+  showToast(`QR scanned: ${selectedSubjectFromQR}`);
+}
 
 } catch (error) {
 console.error("Firebase login error:", error);
