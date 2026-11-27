@@ -2866,6 +2866,7 @@ const action = button.dataset.action;
 
   
 const recordId = button.dataset.record;
+const id = button.dataset.id;
 
 if (action === "show-add-apparatus") {
   if (!roleIsStaff()) {
@@ -2911,7 +2912,6 @@ showing ? "Hide password" : "Show password"
 
 return;
 }
-const id = button.dataset.id;
 
 if (action === "show-login") renderLogin();
 if (action === "show-welcome") renderWelcome();
