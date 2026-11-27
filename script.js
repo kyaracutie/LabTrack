@@ -2663,6 +2663,11 @@ showToast("Transaction records exported.");
 
 
 document.addEventListener("submit", async event => {
+if (event.target.id === "addApparatusForm") {
+  event.preventDefault();
+  await saveNewApparatus(event);
+  return;
+}
 if (event.target.id === "loginForm") {
 event.preventDefault();
 
@@ -3125,13 +3130,6 @@ if (action === "clear-record-search") {
 recordSearchText = "";
 renderApp();
 }
-});
-
-document.addEventListener("submit", async event => {
-  if (event.target.id === "addApparatusForm") {
-    event.preventDefault();
-    await saveNewApparatus(event);
-  }
 });
 
 document.addEventListener("input", event => {
