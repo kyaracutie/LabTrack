@@ -1190,3 +1190,11 @@ td .btn {
     grid-template-columns: 1fr;
   }
 }
+
+.category-group-row td {
+  background: #e5e5e5;
+  color: #333;
+  padding: 12px 14px;
+  font-weight: 700;
+  text-align: left;
+}
