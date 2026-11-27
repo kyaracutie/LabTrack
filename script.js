@@ -544,6 +544,10 @@ const imagePath = document
     return;
   }
 
+console.log("Current UID:", auth.currentUser?.uid);
+console.log("Staff UID:", "FNKBxjKh2zUi1tgV8SMy4WeTud62");
+console.log("Staff role:", role);
+  
   try {
     const itemRef = doc(db, "inventory", id);
     const existingItem = await getDoc(itemRef);
