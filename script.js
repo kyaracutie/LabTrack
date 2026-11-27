@@ -1024,9 +1024,15 @@ return items.map(item => `
 }
 
 function getCategoryBackground(category) {
-  const filename = category.toLowerCase().replace(/\s+/g, "-");
+  const backgrounds = {
+    "chemistry": "images/chemistry.jpg",
+    "physics": "images/physics.jpg",
+    "biology": "images/biology.jpg",
+    "earth and space science": "images/earth-space.jpg",
+    "general laboratory": "images/general-lab.jpg"
+  };
 
-  return `images/${filename}.jpg`;
+  return backgrounds[category.toLowerCase().trim()] || "";
 }
 
 function renderInventoryTable(showTitle = true) {
