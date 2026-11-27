@@ -230,7 +230,7 @@ function startInventorySync() {
 
         // Test Tube image
         if (item.id === "LT001") {
-          item.image = "images/testtube.jpg";
+          item.image = "/images/testtube.jpg";
         }
 
         return item;
