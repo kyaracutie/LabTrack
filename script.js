@@ -501,8 +501,12 @@ const category = categorySelect.value === "__new__"
   const location = document.getElementById("newApparatusLocation").value.trim();
   const totalInput = document.getElementById("newApparatusTotal");
   const total = Number(totalInput.value);
-  const symbol = document.getElementById("newApparatusSymbol").value.trim() || "🧪";
-  const description = document.getElementById("newApparatusDescription").value.trim();
+ const symbol = document.getElementById("newApparatusSymbol").value.trim() || "🧪";
+const description = document.getElementById("newApparatusDescription").value.trim();
+
+const imagePath = document
+  .getElementById("newApparatusImage")
+  .value.trim();
 
   const uses = document.getElementById("newApparatusUses").value
     .split("\n")
@@ -578,10 +582,10 @@ const category = categorySelect.value === "__new__"
     closeModal();
     showToast(`${name} added successfully!`);
 
-  } catch (error) {
-    console.error("Add apparatus error:", error);
-    showToast("Could not add apparatus. Check Firebase permissions.");
-  }
+} catch (error) {
+  console.error("Add apparatus error:", error);
+  showToast(`Could not add apparatus: ${error.code || error.message}`);
+}
 }
 
 
