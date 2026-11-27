@@ -1148,3 +1148,45 @@ td .btn {
   padding: 12px 14px;
   border-top: 2px solid var(--border);
 }
+
+
+.subject-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 20px;
+}
+
+.subject-card {
+  width: 100%;
+  min-height: 155px;
+  border: none;
+  border-radius: 22px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  display: flex;
+  align-items: flex-end;
+  padding: 16px;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.2s ease;
+}
+
+.subject-card:hover {
+  transform: translateY(-3px);
+}
+
+.subject-card span {
+  color: white;
+  font-size: 22px;
+  font-weight: 800;
+  text-transform: uppercase;
+  text-shadow: 0 2px 5px rgba(0,0,0,0.4);
+}
+
+@media (max-width: 550px) {
+  .subject-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
