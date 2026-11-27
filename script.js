@@ -333,7 +333,16 @@ modalRoot._confirmAction = null;
 }
 
 
+
 function showAddApparatusForm() {
+  const existingCategories = [
+    ...new Set(
+      data.items
+        .map(item => (item.category || "").trim())
+        .filter(Boolean)
+    )
+  ].sort((a, b) => a.localeCompare(b));
+
   modalRoot.innerHTML = `
     <div class="modal-backdrop">
       <section class="modal-card"
@@ -356,8 +365,24 @@ function showAddApparatusForm() {
             placeholder="Enter apparatus name" required>
 
           <label>Category</label>
-          <input type="text" id="newApparatusCategory"
-            placeholder="Example: Glassware" required>
+          <select id="newApparatusCategory" required>
+            <option value="" disabled selected>Select a category</option>
+
+            ${existingCategories.map(category => `
+              <option value="${escapeHTML(category)}">
+                ${escapeHTML(category)}
+              </option>
+            `).join("")}
+
+            <option value="__new__">+ Add New Category</option>
+          </select>
+
+          <input
+            type="text"
+            id="newApparatusCustomCategory"
+            placeholder="Enter new category name"
+            style="display:none; margin-top:10px"
+          >
 
           <label>Subject</label>
           <select id="newApparatusSubject" required>
@@ -417,6 +442,7 @@ function showAddApparatusForm() {
 }
 
 
+
 async function saveNewApparatus(event) {
   event.preventDefault();
 
@@ -427,7 +453,15 @@ async function saveNewApparatus(event) {
 
   const id = document.getElementById("newApparatusId").value.trim().toUpperCase();
   const name = document.getElementById("newApparatusName").value.trim();
-  const category = document.getElementById("newApparatusCategory").value.trim();
+  const categorySelect = document.getElementById("newApparatusCategory");
+
+const customCategoryInput = document.getElementById(
+  "newApparatusCustomCategory"
+);
+
+const category = categorySelect.value === "__new__"
+  ? customCategoryInput.value.trim()
+  : categorySelect.value.trim();
   const subject = document.getElementById("newApparatusSubject").value;
   const location = document.getElementById("newApparatusLocation").value.trim();
   const totalInput = document.getElementById("newApparatusTotal");
@@ -445,10 +479,17 @@ async function saveNewApparatus(event) {
     .map(value => value.trim())
     .filter(Boolean);
 
-  if (!id || !name || !category || !location || !description) {
-    showToast("Please complete all required fields.");
-    return;
-  }
+ if (
+  !id ||
+  !name ||
+  !category ||
+  !location ||
+  !description ||
+  (categorySelect.value === "__new__" && !category)
+) {
+  showToast("Please complete all required fields.");
+  return;
+}
 
   if (!/^[A-Z0-9_-]+$/.test(id)) {
     showToast("Use only letters, numbers, hyphens, or underscores for the ID.");
@@ -2613,6 +2654,25 @@ renderApp();
 }
 });
 
+
+document.addEventListener("change", event => {
+  if (event.target.id !== "newApparatusCategory") return;
+
+  const customCategory = document.getElementById(
+    "newApparatusCustomCategory"
+  );
+
+  if (!customCategory) return;
+
+  const isNew = event.target.value === "__new__";
+
+  customCategory.style.display = isNew ? "block" : "none";
+  customCategory.required = isNew;
+
+  if (!isNew) {
+    customCategory.value = "";
+  }
+});
 
 document.addEventListener("click", async event => {
 const button = event.target.closest("[data-action]");
