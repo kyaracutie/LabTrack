@@ -405,6 +405,15 @@ function showAddApparatusForm() {
           <input type="text" id="newApparatusSymbol"
             placeholder="Example: 🧪">
 
+            const imagePath = document.getElementById("newApparatusImage").value.trim();
+            
+<label>Apparatus Image Path</label>
+<input
+  type="text"
+  id="newApparatusImage"
+  placeholder="images/apparatus/testtube.jpg"
+>
+
           <label>Description</label>
           <textarea id="newApparatusDescription"
             placeholder="Describe the apparatus..."
@@ -533,6 +542,7 @@ const category = categorySelect.value === "__new__"
       enabled: true,
       conditionCounts,
       symbol,
+      image: imagePath,
       description,
       uses,
       safety,
