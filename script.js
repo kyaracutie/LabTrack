@@ -545,8 +545,8 @@ const imagePath = document
   }
 
 console.log("Current UID:", auth.currentUser?.uid);
-console.log("Staff UID:", "FNKBxjKh2zUi1tgV8SMy4WeTud62");
-console.log("Staff role:", role);
+console.log("Staff UID:", currentUser?.uid);
+console.log("Staff role:", currentUser?.role);
   
   try {
     const itemRef = doc(db, "inventory", id);
